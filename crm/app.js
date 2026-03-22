@@ -9,6 +9,7 @@ const leadStages = [
 const orderStatuses = ["Agendado", "Em andamento", "Concluido", "Cancelado"];
 const paymentStatuses = ["Pendente", "Parcial", "Pago"];
 const financialEntryStatuses = ["Pendente", "Pago"];
+const LOCAL_FINANCE_STORAGE_KEY = "fortlar_financial_entries_v1";
 
 let supabaseClient = null;
 let currentUser = null;
@@ -21,6 +22,7 @@ let state = {
     fortlarPhone: "5512996619062",
     storageBucket: "crm-anexos",
     financeModuleReady: true,
+    financePersistenceMode: "supabase",
   },
   stats: {},
   leads: [],
@@ -477,15 +479,19 @@ async function loadFinancialEntries() {
 
   if (error) {
     if (isMissingFinancialTableError(error)) {
-      state.meta.financeModuleReady = false;
-      return [];
+      state.meta.financeModuleReady = true;
+      state.meta.financePersistenceMode = "local";
+      return loadLocalFinancialEntries();
     }
 
     throw new Error(error.message);
   }
 
   state.meta.financeModuleReady = true;
-  return (data || []).map(mapFinancialEntry);
+  state.meta.financePersistenceMode = "supabase";
+  const syncedLocalEntries = await syncLocalFinancialEntriesToSupabase();
+  return [...(data || []).map(mapFinancialEntry), ...syncedLocalEntries]
+    .sort((left, right) => `${right.entryDate}${right.createdAt}`.localeCompare(`${left.entryDate}${left.createdAt}`));
 }
 
 async function fetchAttachmentCounts() {
@@ -699,12 +705,17 @@ function bindForms() {
         reference: form.get("reference"),
       };
 
-      const operation = financialEntryId
-        ? supabaseClient.from("financial_entries").update(payload).eq("id", financialEntryId)
-        : supabaseClient.from("financial_entries").insert(payload);
-      const { error } = await operation;
+      if (state.meta.financePersistenceMode === "local") {
+        saveFinancialEntryLocally(payload, financialEntryId || null);
+      } else {
+        const operation = financialEntryId
+          ? supabaseClient.from("financial_entries").update(payload).eq("id", financialEntryId)
+          : supabaseClient.from("financial_entries").insert(payload);
+        const { error } = await operation;
 
-      throwIfError(error);
+        throwIfError(error);
+      }
+
       await insertActivity(
         financialEntryId ? "Lancamento financeiro atualizado" : "Lancamento financeiro criado",
         financialEntryId
@@ -749,8 +760,12 @@ function bindForms() {
         reference: form.get("reference") || "Movimentacao direta de caixa",
       };
 
-      const { error } = await supabaseClient.from("financial_entries").insert(payload);
-      throwIfError(error);
+      if (state.meta.financePersistenceMode === "local") {
+        saveFinancialEntryLocally(payload);
+      } else {
+        const { error } = await supabaseClient.from("financial_entries").insert(payload);
+        throwIfError(error);
+      }
 
       await insertActivity(
         "Movimentacao de caixa registrada",
@@ -1797,12 +1812,16 @@ function renderFinance() {
   document.querySelectorAll("[data-entry-status-id]").forEach((select) => {
     select.addEventListener("change", async (event) => {
       try {
-        const { error } = await supabaseClient
-          .from("financial_entries")
-          .update({ status: event.target.value })
-          .eq("id", event.target.dataset.entryStatusId);
+        if (state.meta.financePersistenceMode === "local") {
+          updateLocalFinancialEntryStatus(event.target.dataset.entryStatusId, event.target.value);
+        } else {
+          const { error } = await supabaseClient
+            .from("financial_entries")
+            .update({ status: event.target.value })
+            .eq("id", event.target.dataset.entryStatusId);
 
-        throwIfError(error);
+          throwIfError(error);
+        }
         await insertActivity("Lancamento atualizado", `Situacao financeira alterada para ${event.target.value}.`);
         await bootstrap();
         showFeedback("Lancamento atualizado com sucesso.", "success");
@@ -2497,6 +2516,124 @@ function mapFinancialEntry(row) {
   };
 }
 
+function loadLocalFinancialEntries() {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(LOCAL_FINANCE_STORAGE_KEY);
+    const parsed = JSON.parse(raw || "[]");
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .map((entry) => ({
+        id: entry.id,
+        entryType: entry.entryType,
+        category: entry.category,
+        description: entry.description,
+        entryDate: String(entry.entryDate),
+        amount: Number(entry.amount || 0),
+        status: entry.status || "Pendente",
+        paymentMethod: entry.paymentMethod || "Pix",
+        reference: entry.reference || "",
+        createdAt: entry.createdAt || new Date().toISOString(),
+      }))
+      .sort((left, right) => `${right.entryDate}${right.createdAt}`.localeCompare(`${left.entryDate}${left.createdAt}`));
+  } catch (_error) {
+    return [];
+  }
+}
+
+function persistLocalFinancialEntries(entries) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(LOCAL_FINANCE_STORAGE_KEY, JSON.stringify(entries));
+}
+
+function buildLocalFinancialEntry(payload, existingEntry = null) {
+  return {
+    id: existingEntry?.id || generateFinancialEntryId(),
+    entryType: payload.entry_type,
+    category: payload.category,
+    description: payload.description,
+    entryDate: String(payload.entry_date),
+    amount: Number(payload.amount || 0),
+    status: payload.status || "Pendente",
+    paymentMethod: payload.payment_method || "Pix",
+    reference: payload.reference || "",
+    createdAt: existingEntry?.createdAt || new Date().toISOString(),
+  };
+}
+
+function saveFinancialEntryLocally(payload, entryId = null) {
+  const entries = loadLocalFinancialEntries();
+  const existingEntry = entryId ? entries.find((entry) => entry.id === entryId) : null;
+  const nextEntry = buildLocalFinancialEntry(payload, existingEntry ? { ...existingEntry, id: entryId } : null);
+  const remainingEntries = entryId ? entries.filter((entry) => entry.id !== entryId) : entries;
+  persistLocalFinancialEntries([nextEntry, ...remainingEntries]);
+  return nextEntry;
+}
+
+function updateLocalFinancialEntryStatus(entryId, status) {
+  const entries = loadLocalFinancialEntries().map((entry) =>
+    entry.id === entryId
+      ? {
+          ...entry,
+          status,
+        }
+      : entry
+  );
+
+  persistLocalFinancialEntries(entries);
+}
+
+function removeLocalFinancialEntry(entryId) {
+  const entries = loadLocalFinancialEntries().filter((entry) => entry.id !== entryId);
+  persistLocalFinancialEntries(entries);
+}
+
+async function syncLocalFinancialEntriesToSupabase() {
+  const localEntries = loadLocalFinancialEntries();
+
+  if (!localEntries.length) {
+    return [];
+  }
+
+  const payload = localEntries.map((entry) => ({
+    entry_type: entry.entryType,
+    category: entry.category,
+    description: entry.description,
+    entry_date: entry.entryDate,
+    amount: Number(entry.amount || 0),
+    status: entry.status,
+    payment_method: entry.paymentMethod,
+    reference: entry.reference || "",
+  }));
+
+  const { data, error } = await supabaseClient.from("financial_entries").insert(payload).select("*");
+
+  if (error) {
+    return localEntries;
+  }
+
+  persistLocalFinancialEntries([]);
+  return (data || []).map(mapFinancialEntry);
+}
+
+function generateFinancialEntryId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `fin-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+}
+
 function getCashMovementConfig(movementType) {
   if (movementType === "saida") {
     return {
@@ -2813,8 +2950,12 @@ async function deleteFinancialEntry(entryId) {
   }
 
   try {
-    const { error } = await supabaseClient.from("financial_entries").delete().eq("id", entryId);
-    throwIfError(error);
+    if (state.meta.financePersistenceMode === "local") {
+      removeLocalFinancialEntry(entryId);
+    } else {
+      const { error } = await supabaseClient.from("financial_entries").delete().eq("id", entryId);
+      throwIfError(error);
+    }
     await insertActivity("Lancamento excluido", `${entry?.description || "Registro financeiro"} foi removido do CRM.`);
     await bootstrap();
     setActiveSection("financeiro");
