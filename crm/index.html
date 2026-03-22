@@ -274,7 +274,10 @@
             <span class="eyebrow">Financeiro</span>
             <h2>Contabilidade, caixa e desempenho operacional</h2>
           </div>
-          <button class="ghost-button" id="financial-entry-button" data-open-modal="financial-entry-modal">Novo lancamento</button>
+          <div class="section-actions">
+            <button class="ghost-button" id="export-finance-button" type="button">Exportar Excel</button>
+            <button class="ghost-button" id="financial-entry-button" data-open-modal="financial-entry-modal">Novo lancamento</button>
+          </div>
         </div>
 
         <div class="finance-alert is-hidden" id="finance-alert"></div>
@@ -754,6 +757,7 @@
 
   <script src="./config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

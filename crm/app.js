@@ -58,6 +58,7 @@ const elements = {
   financeTimeline: document.getElementById("finance-timeline"),
   financePlanning: document.getElementById("finance-planning"),
   financialEntryButton: document.getElementById("financial-entry-button"),
+  exportFinanceButton: document.getElementById("export-finance-button"),
   cashMovementButtons: document.querySelectorAll("[data-open-cash-movement]"),
   search: document.getElementById("global-search"),
   sidebar: document.getElementById("sidebar"),
@@ -116,6 +117,7 @@ async function initialize() {
   bindSearch();
   bindSidebar();
   bindActionDelegation();
+  bindFinanceActions();
 
   try {
     supabaseClient = createSupabaseClient();
@@ -868,6 +870,17 @@ function bindSidebar() {
   });
 
   elements.pageLayer?.addEventListener("click", closeSidebar);
+}
+
+function bindFinanceActions() {
+  elements.exportFinanceButton?.addEventListener("click", () => {
+    try {
+      exportFinanceWorkbook();
+      showFeedback("Relatorio financeiro exportado em Excel.", "success");
+    } catch (error) {
+      showFeedback(translateError(error.message), "error");
+    }
+  });
 }
 
 function bindActionDelegation() {
@@ -1957,6 +1970,135 @@ function buildFinanceData() {
       },
     ],
   };
+}
+
+function exportFinanceWorkbook() {
+  if (!window.XLSX) {
+    throw new Error("A biblioteca de exportacao do Excel nao carregou corretamente.");
+  }
+
+  const financeData = buildFinanceData();
+  const workbook = window.XLSX.utils.book_new();
+  const exportedAt = new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date());
+
+  const summaryRows = [
+    { Campo: "Exportado em", Valor: exportedAt },
+    { Campo: "Busca aplicada", Valor: searchQuery || "Sem filtro" },
+    { Campo: "Lancamentos financeiros", Valor: state.meta.financeModuleReady ? "Ativos" : "Indisponiveis" },
+    {},
+    ...financeData.summaryCards.map((card) => ({
+      Campo: card.label,
+      Valor: card.value,
+      Contexto: card.hint,
+      Leitura: card.trend,
+    })),
+  ];
+
+  const healthRows = financeData.healthItems.map((item) => ({
+    Indicador: item.label,
+    Valor: item.value,
+    Tag: item.tag,
+    Descricao: item.description,
+  }));
+
+  const serviceRows = financeData.serviceBreakdown.map((item) => ({
+    Servico: item.label,
+    Total: item.total,
+    Participacao: `${item.share}%`,
+    Registros: item.count,
+  }));
+
+  const expenseRows = financeData.expenseBreakdown.map((item) => ({
+    Categoria: item.label,
+    Total: item.total,
+    Participacao: `${item.share}%`,
+    Registros: item.count,
+  }));
+
+  const receivablesRows = financeData.receivables.map((item) => ({
+    OS: item.code,
+    Cliente: item.customer,
+    Telefone: item.phone || "",
+    Servico: item.service,
+    Vencimento: formatDate(item.date),
+    "Valor total": Number(item.amount || 0),
+    "Valor pago": Number(item.amountPaid || 0),
+    "Saldo aberto": Number(item.remainingAmount || 0),
+    Situacao: item.paymentStatus,
+  }));
+
+  const entriesRows = financeData.entries.map((entry) => ({
+    Tipo: entry.entryType,
+    Categoria: entry.category,
+    Descricao: entry.description,
+    Data: formatDate(entry.entryDate),
+    Valor: Number(entry.amount || 0),
+    Situacao: entry.status,
+    "Forma de pagamento": entry.paymentMethod,
+    Referencia: entry.reference || "",
+  }));
+
+  const timelineRows = financeData.timeline.map((item) => ({
+    Titulo: item.title,
+    Descricao: item.description,
+    Data: item.when,
+    Valor: Number(item.amount || 0),
+    Direcao: item.amountTone === "finance-negative" ? "Saida" : "Entrada",
+  }));
+
+  const planningRows = financeData.planning.map((item) => ({
+    Tema: item.title,
+    Descricao: item.description,
+    Prioridade: item.tag,
+  }));
+
+  appendSheet(workbook, summaryRows, "Resumo");
+  appendSheet(workbook, healthRows, "Indicadores");
+  appendSheet(workbook, serviceRows, "Receita por servico");
+  appendSheet(workbook, expenseRows, "Despesas");
+  appendSheet(workbook, receivablesRows, "Contas a receber");
+  appendSheet(workbook, entriesRows, "Lancamentos");
+  appendSheet(workbook, timelineRows, "Fluxo");
+  appendSheet(workbook, planningRows, "Planejamento");
+
+  const fileDate = todayIso().replace(/-/g, "");
+  window.XLSX.writeFile(workbook, `fortlar-financeiro-${fileDate}.xlsx`);
+}
+
+function appendSheet(workbook, rows, sheetName) {
+  const safeRows = rows.length ? rows : [{ Info: "Sem dados para exportar nesta aba." }];
+  const worksheet = window.XLSX.utils.json_to_sheet(safeRows);
+  const range = window.XLSX.utils.decode_range(worksheet["!ref"] || "A1");
+  const columns = [];
+
+  for (let columnIndex = range.s.c; columnIndex <= range.e.c; columnIndex += 1) {
+    let maxLength = 14;
+
+    for (let rowIndex = range.s.r; rowIndex <= range.e.r; rowIndex += 1) {
+      const cellAddress = window.XLSX.utils.encode_cell({ c: columnIndex, r: rowIndex });
+      const cellValue = worksheet[cellAddress]?.v;
+      const length = String(cellValue ?? "").length;
+      maxLength = Math.min(Math.max(maxLength, length + 2), 38);
+    }
+
+    columns.push({ wch: maxLength });
+  }
+
+  worksheet["!cols"] = columns;
+  window.XLSX.utils.book_append_sheet(workbook, worksheet, normalizeSheetName(sheetName));
+}
+
+function normalizeSheetName(name) {
+  return String(name || "Planilha")
+    .slice(0, 31)
+    .replace(/[\\/*?:[\]]/g, " ")
+    .trim() || "Planilha";
 }
 
 function renderBreakdownRows(items) {

@@ -718,6 +718,14 @@ a {
   gap: 0.18rem;
 }
 
+.section-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
 .panel-actions {
   display: flex;
   align-items: center;
@@ -1684,6 +1692,10 @@ a {
   }
 
   .panel-actions {
+    justify-content: stretch;
+  }
+
+  .section-actions {
     justify-content: stretch;
   }
 
