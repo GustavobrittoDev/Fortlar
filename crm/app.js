@@ -506,9 +506,12 @@ function renderPipeline() {
     .map((stage) => {
       const leads = getFilteredLeads().filter((lead) => lead.status === stage.key);
       return `
-        <article class="pipeline-column">
+        <article class="pipeline-column" data-stage="${stage.key}">
           <div class="column-head">
-            <strong>${stage.label}</strong>
+            <div class="column-head-copy">
+              <strong>${stage.label}</strong>
+              <span>${leads.length} lead(s) neste estagio</span>
+            </div>
             <span class="column-count">${leads.length}</span>
           </div>
           <div class="lead-stack" data-dropzone="${stage.key}">
@@ -518,17 +521,25 @@ function renderPipeline() {
                     .map(
                       (lead) => `
                         <div class="lead-card" draggable="true" data-lead-id="${lead.id}">
-                          <div class="lead-meta">
-                            <strong>${lead.name}</strong>
+                          <div class="lead-card-header">
+                            <div class="lead-title-group">
+                              <strong>${lead.name}</strong>
+                              <span class="lead-id">${lead.id}</span>
+                            </div>
                             <span class="priority ${normalizeKey(lead.priority)}">${lead.priority}</span>
                           </div>
-                          <p class="lead-note">${lead.notes}</p>
-                          <div class="lead-footer">
-                            <span class="badge">${lead.service}</span>
-                            <span class="muted">${lead.address}</span>
+                          <div class="lead-card-body">
+                            <div class="lead-meta-row">
+                              <span class="badge">${lead.service}</span>
+                              <span class="lead-source">${lead.source}</span>
+                            </div>
+                            <p class="lead-note">${lead.notes}</p>
+                            <div class="lead-contact-list">
+                              <span class="lead-contact-item">${lead.address}</span>
+                              <span class="lead-contact-item">${lead.phone}</span>
+                            </div>
                           </div>
-                          <div class="lead-footer">
-                            <span class="muted">${lead.phone}</span>
+                          <div class="lead-card-actions">
                             <select class="status-select" data-lead-status="${lead.id}">
                               ${leadStages
                                 .map(
