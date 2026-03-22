@@ -73,6 +73,9 @@ const elements = {
   appointmentForm: document.getElementById("appointment-form"),
   orderForm: document.getElementById("order-form"),
   financialEntryForm: document.getElementById("financial-entry-form"),
+  appointmentCustomerInput: document.querySelector('#appointment-form [name="customer"]'),
+  orderCustomerInput: document.querySelector('#order-form [name="customer"]'),
+  customerOptions: document.getElementById("customer-options"),
   leadModalTitle: document.getElementById("lead-modal-title"),
   appointmentModalTitle: document.getElementById("appointment-modal-title"),
   orderModalTitle: document.getElementById("order-modal-title"),
@@ -98,6 +101,7 @@ async function initialize() {
   bindNavigation();
   bindModals();
   bindForms();
+  bindCustomerAutofill();
   bindSearch();
   bindSidebar();
   bindActionDelegation();
@@ -661,6 +665,18 @@ function bindForms() {
   });
 }
 
+function bindCustomerAutofill() {
+  [elements.appointmentCustomerInput, elements.orderCustomerInput].forEach((input) => {
+    input?.addEventListener("input", () => {
+      autofillCustomerDetails(input.closest("form"), input.value);
+    });
+
+    input?.addEventListener("change", () => {
+      autofillCustomerDetails(input.closest("form"), input.value);
+    });
+  });
+}
+
 function bindSearch() {
   elements.search.addEventListener("input", async (event) => {
     searchQuery = normalizeSearchTerm(event.target.value.trim());
@@ -821,6 +837,7 @@ function clearFeedback() {
 }
 
 function renderAll() {
+  renderCustomerSuggestions();
   renderSidebarSummary();
   renderStats();
   renderDashboard();
@@ -829,6 +846,18 @@ function renderAll() {
   renderAgenda();
   renderOrders();
   renderFinance();
+}
+
+function renderCustomerSuggestions() {
+  if (!elements.customerOptions) {
+    return;
+  }
+
+  const customers = buildCustomerRowsFromSource(state.leads)
+    .sort((left, right) => left.name.localeCompare(right.name, "pt-BR"))
+    .map((customer) => `<option value="${escapeHtml(customer.name)}"></option>`);
+
+  elements.customerOptions.innerHTML = customers.join("");
 }
 
 function renderSidebarSummary() {
@@ -1917,9 +1946,13 @@ async function insertActivity(title, description) {
 }
 
 function buildCustomerRows() {
+  return buildCustomerRowsFromSource(getFilteredLeads());
+}
+
+function buildCustomerRowsFromSource(source) {
   const map = new Map();
 
-  getFilteredLeads().forEach((lead) => {
+  source.forEach((lead) => {
     if (!map.has(lead.name)) {
       map.set(lead.name, {
         id: lead.id,
@@ -1927,6 +1960,7 @@ function buildCustomerRows() {
         phone: lead.phone,
         service: lead.service,
         address: lead.address,
+        notes: lead.notes,
         status: lead.status,
         lastContact: lead.lastContact,
       });
@@ -1934,6 +1968,30 @@ function buildCustomerRows() {
   });
 
   return Array.from(map.values());
+}
+
+function findCustomerByName(name) {
+  const normalizedTarget = normalizeSearchTerm(name);
+
+  if (!normalizedTarget) {
+    return null;
+  }
+
+  return buildCustomerRowsFromSource(state.leads).find((customer) => normalizeSearchTerm(customer.name) === normalizedTarget) || null;
+}
+
+function autofillCustomerDetails(form, customerName) {
+  const customer = findCustomerByName(customerName);
+
+  if (!form || !customer) {
+    return;
+  }
+
+  setFormValue(form, "customer", customer.name);
+  setFormValue(form, "phone", customer.phone || "");
+  setFormValue(form, "service", customer.service || "");
+  setFormValue(form, "address", customer.address || "");
+  setFormValue(form, "notes", customer.notes || "");
 }
 
 function getFilteredLeads() {

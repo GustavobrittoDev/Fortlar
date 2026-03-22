@@ -468,7 +468,7 @@
       <div class="form-grid">
         <label class="field">
           <span>Cliente</span>
-          <input name="customer" type="text" required>
+          <input name="customer" type="text" list="customer-options" autocomplete="off" required>
         </label>
         <label class="field">
           <span>Telefone</span>
@@ -522,7 +522,7 @@
       <div class="form-grid">
         <label class="field">
           <span>Cliente</span>
-          <input name="customer" type="text" required>
+          <input name="customer" type="text" list="customer-options" autocomplete="off" required>
         </label>
         <label class="field">
           <span>Telefone</span>
@@ -662,6 +662,8 @@
       </div>
     </form>
   </dialog>
+
+  <datalist id="customer-options"></datalist>
 
   <script src="./config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
