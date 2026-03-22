@@ -625,7 +625,7 @@ function bindForms() {
     clearFeedback();
 
     if (!state.meta.financeModuleReady) {
-      showFeedback("Rode o arquivo crm/supabase-finance-upgrade.sql no Supabase para liberar lancamentos.", "error");
+      showFeedback("Lancamentos indisponiveis no momento.", "error");
       return;
     }
 
@@ -1399,14 +1399,8 @@ function renderFinance() {
     elements.financialEntryButton.textContent = state.meta.financeModuleReady ? "Novo lancamento" : "Ativar lancamentos";
   }
 
-  if (state.meta.financeModuleReady) {
-    elements.financeAlert.textContent = "";
-    elements.financeAlert.classList.add("is-hidden");
-  } else {
-    elements.financeAlert.innerHTML =
-      'Lance despesas e receitas avulsas rodando primeiro o arquivo <strong>crm/supabase-finance-upgrade.sql</strong> no Supabase.';
-    elements.financeAlert.classList.remove("is-hidden");
-  }
+  elements.financeAlert.textContent = "";
+  elements.financeAlert.classList.add("is-hidden");
 
   elements.financeCards.innerHTML = financeData.summaryCards
     .map(
@@ -1524,7 +1518,7 @@ function renderFinance() {
           )
           .join("")
       : `<tr><td colspan="7"><div class="empty-state">Nenhum lancamento manual encontrado.</div></td></tr>`
-    : `<tr><td colspan="7"><div class="empty-state">Ative o upgrade financeiro no Supabase para salvar despesas e receitas avulsas.</div></td></tr>`;
+    : `<tr><td colspan="7"><div class="empty-state">Lancamentos indisponiveis no momento.</div></td></tr>`;
 
   elements.financeTimeline.innerHTML = financeData.timeline.length
     ? financeData.timeline
