@@ -12,11 +12,11 @@ values
   ('Rogerio Lima', '(12) 99671-9090', 'Montagem de moveis', 'Jardim California, Jacarei', '2026-03-23', '09:00', ''),
   ('Bianca Nunes', '(12) 99711-7788', 'Instalacoes', 'Cidade Jardim, Jacarei', '2026-03-24', '16:30', '');
 
-insert into public.orders (code, customer, phone, service, address, date, time, amount, status, payment_status, notes)
+insert into public.orders (code, customer, phone, service, address, date, time, amount, amount_paid, status, payment_status, notes)
 values
-  ('OS-301', 'Rogerio Lima', '(12) 99671-9090', 'Montagem de moveis', 'Jardim California, Jacarei', '2026-03-22', '14:00', 580, 'Agendado', 'Pendente', 'Montagem de painel e fixacao de prateleira.'),
-  ('OS-302', 'Patricia Alves', '(12) 99881-4545', 'Eletrica', 'Centro, Jacarei', '2026-03-22', '16:00', 1250, 'Em andamento', 'Parcial', 'Instalacao de spots e revisao eletrica.'),
-  ('OS-303', 'Carlos Mota', '(12) 99700-1188', 'Reparos em geral', 'Parque Meia Lua, Jacarei', '2026-03-21', '11:00', 390, 'Concluido', 'Pago', 'Ajustes finais em porta e suportes.');
+  ('OS-301', 'Rogerio Lima', '(12) 99671-9090', 'Montagem de moveis', 'Jardim California, Jacarei', '2026-03-22', '14:00', 580, 0, 'Agendado', 'Pendente', 'Montagem de painel e fixacao de prateleira.'),
+  ('OS-302', 'Patricia Alves', '(12) 99881-4545', 'Eletrica', 'Centro, Jacarei', '2026-03-22', '16:00', 1250, 550, 'Em andamento', 'Parcial', 'Instalacao de spots e revisao eletrica.'),
+  ('OS-303', 'Carlos Mota', '(12) 99700-1188', 'Reparos em geral', 'Parque Meia Lua, Jacarei', '2026-03-21', '11:00', 390, 390, 'Concluido', 'Pago', 'Ajustes finais em porta e suportes.');
 
 insert into public.activities (title, description, time_label)
 values

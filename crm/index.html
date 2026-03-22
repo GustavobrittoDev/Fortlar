@@ -319,6 +319,7 @@
                     <th>Cliente</th>
                     <th>Servico</th>
                     <th>Vencimento</th>
+                    <th>Recebido</th>
                     <th>Valor</th>
                     <th>Situacao</th>
                   </tr>
@@ -560,6 +561,14 @@
             <option value="Pago">Pago</option>
             <option value="Parcial">Parcial</option>
           </select>
+        </label>
+        <label class="field">
+          <span>Valor pago</span>
+          <input name="amountPaid" type="number" min="0" step="0.01" value="0">
+        </label>
+        <label class="field">
+          <span>Saldo restante</span>
+          <input name="amountDue" type="text" readonly value="R$ 0,00">
         </label>
         <label class="field field-full">
           <span>Endereco</span>

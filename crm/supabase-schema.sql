@@ -43,6 +43,7 @@ create table if not exists public.orders (
   date date not null,
   time text not null,
   amount numeric(10, 2) not null default 0,
+  amount_paid numeric(10, 2) not null default 0,
   status text not null default 'Agendado',
   payment_status text not null default 'Pendente',
   notes text not null default '',

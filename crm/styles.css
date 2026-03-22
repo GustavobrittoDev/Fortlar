@@ -1489,6 +1489,13 @@ a {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.field input[readonly] {
+  color: var(--text-soft);
+  background: rgba(20, 49, 77, 0.05);
+  font-weight: 800;
+  cursor: default;
+}
+
 .field input:focus,
 .field select:focus,
 .field textarea:focus,

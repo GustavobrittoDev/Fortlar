@@ -73,6 +73,10 @@ const elements = {
   appointmentForm: document.getElementById("appointment-form"),
   orderForm: document.getElementById("order-form"),
   financialEntryForm: document.getElementById("financial-entry-form"),
+  orderAmountInput: document.querySelector('#order-form [name="amount"]'),
+  orderPaymentStatusInput: document.querySelector('#order-form [name="paymentStatus"]'),
+  orderAmountPaidInput: document.querySelector('#order-form [name="amountPaid"]'),
+  orderAmountDueInput: document.querySelector('#order-form [name="amountDue"]'),
   appointmentCustomerInput: document.querySelector('#appointment-form [name="customer"]'),
   orderCustomerInput: document.querySelector('#order-form [name="customer"]'),
   customerOptions: document.getElementById("customer-options"),
@@ -102,6 +106,7 @@ async function initialize() {
   bindModals();
   bindForms();
   bindCustomerAutofill();
+  bindOrderPaymentCalculator();
   bindSearch();
   bindSidebar();
   bindActionDelegation();
@@ -197,6 +202,8 @@ function resetOrderFormState() {
   elements.orderForm?.reset();
   setFormValue(elements.orderForm, "orderId", "");
   setDefaultFormDates();
+  setFormValue(elements.orderForm, "amountPaid", "0.00");
+  syncOrderPaymentFields();
   if (elements.orderModalTitle) {
     elements.orderModalTitle.textContent = "Nova ordem de servico";
   }
@@ -293,8 +300,10 @@ function openOrderEditor(orderId) {
   setFormValue(elements.orderForm, "amount", order.amount);
   setFormValue(elements.orderForm, "status", order.status);
   setFormValue(elements.orderForm, "paymentStatus", order.paymentStatus);
+  setFormValue(elements.orderForm, "amountPaid", order.amountPaid.toFixed(2));
   setFormValue(elements.orderForm, "address", order.address);
   setFormValue(elements.orderForm, "notes", order.notes);
+  syncOrderPaymentFields();
 
   if (elements.orderModalTitle) {
     elements.orderModalTitle.textContent = `Editar ${order.code}`;
@@ -444,9 +453,7 @@ async function fetchAttachmentCounts() {
 }
 
 function buildStats() {
-  const paidOrders = state.orders
-    .filter((order) => order.paymentStatus === "Pago")
-    .reduce((sum, order) => sum + Number(order.amount || 0), 0);
+  const paidOrders = state.orders.reduce((sum, order) => sum + Number(order.amountPaid || 0), 0);
   const paidExtraRevenue = state.financialEntries
     .filter((entry) => entry.entryType === "Receita" && entry.status === "Pago")
     .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
@@ -457,8 +464,8 @@ function buildStats() {
     activeOrders: state.orders.filter((order) => ["Agendado", "Em andamento"].includes(order.status)).length,
     pendingReceivables:
       state.orders
-        .filter((order) => order.paymentStatus !== "Pago")
-        .reduce((sum, order) => sum + Number(order.amount || 0), 0) +
+        .filter((order) => order.remainingAmount > 0)
+        .reduce((sum, order) => sum + Number(order.remainingAmount || 0), 0) +
       state.financialEntries
         .filter((entry) => entry.entryType === "Receita" && entry.status !== "Pago")
         .reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
@@ -586,6 +593,7 @@ function bindForms() {
     try {
       const form = new FormData(elements.orderForm);
       const orderId = String(form.get("orderId") || "").trim();
+      const paymentState = resolveOrderPaymentState(form);
       const payload = {
           customer: form.get("customer"),
           phone: form.get("phone"),
@@ -593,9 +601,10 @@ function bindForms() {
           address: form.get("address"),
           date: form.get("date"),
           time: form.get("time"),
-          amount: Number(form.get("amount") || 0),
+          amount: paymentState.total,
+          amount_paid: paymentState.amountPaid,
           status: form.get("status"),
-          payment_status: form.get("paymentStatus"),
+          payment_status: paymentState.paymentStatus,
           notes: form.get("notes"),
         };
 
@@ -675,6 +684,75 @@ function bindCustomerAutofill() {
       autofillCustomerDetails(input.closest("form"), input.value);
     });
   });
+}
+
+function bindOrderPaymentCalculator() {
+  [elements.orderAmountInput, elements.orderPaymentStatusInput, elements.orderAmountPaidInput].forEach((field) => {
+    field?.addEventListener("input", () => {
+      syncOrderPaymentFields();
+    });
+
+    field?.addEventListener("change", () => {
+      syncOrderPaymentFields();
+    });
+  });
+}
+
+function syncOrderPaymentFields() {
+  if (!elements.orderForm) {
+    return;
+  }
+
+  const total = parseMoneyInput(elements.orderAmountInput?.value);
+  const status = String(elements.orderPaymentStatusInput?.value || "Pendente");
+  let amountPaid = parseMoneyInput(elements.orderAmountPaidInput?.value);
+
+  amountPaid = Math.max(0, Math.min(amountPaid, total));
+
+  if (status === "Pendente") {
+    amountPaid = 0;
+  }
+
+  if (status === "Pago") {
+    amountPaid = total;
+  }
+
+  const remainingAmount = Math.max(total - amountPaid, 0);
+
+  if (elements.orderAmountPaidInput) {
+    elements.orderAmountPaidInput.value = amountPaid ? amountPaid.toFixed(2) : "0.00";
+  }
+
+  if (elements.orderAmountDueInput) {
+    elements.orderAmountDueInput.value = formatCurrency(remainingAmount);
+  }
+}
+
+function resolveOrderPaymentState(formData) {
+  const total = parseMoneyInput(formData.get("amount"));
+  const status = String(formData.get("paymentStatus") || "Pendente");
+  let amountPaid = parseMoneyInput(formData.get("amountPaid"));
+
+  amountPaid = Math.max(0, Math.min(amountPaid, total));
+
+  if (status === "Pendente") {
+    amountPaid = 0;
+  }
+
+  if (status === "Pago") {
+    amountPaid = total;
+  }
+
+  if (status === "Parcial" && (amountPaid <= 0 || amountPaid >= total)) {
+    throw new Error("Em pagamento parcial, informe quanto ja foi pago. O valor deve ser maior que zero e menor que o total.");
+  }
+
+  return {
+    total,
+    amountPaid,
+    amountDue: Math.max(total - amountPaid, 0),
+    paymentStatus: status,
+  };
 }
 
 function bindSearch() {
@@ -1201,7 +1279,10 @@ function renderOrders() {
               <td>${order.customer}</td>
               <td>${order.service}</td>
               <td>${formatDateTime(order.date, order.time)}</td>
-              <td>${formatCurrency(order.amount)}</td>
+              <td>
+                <strong>${formatCurrency(order.amount)}</strong><br>
+                <span class="table-subline">Pago ${formatCurrency(order.amountPaid)} · Aberto ${formatCurrency(order.remainingAmount)}</span>
+              </td>
               <td>
                 <select class="status-select" data-order-id="${order.id}">
                   ${orderStatuses
@@ -1294,8 +1375,16 @@ async function renderSelectedOrder() {
           <strong>${order.paymentStatus}</strong>
         </div>
         <div>
-          <span class="detail-label">Valor</span>
+          <span class="detail-label">Valor total</span>
           <strong>${formatCurrency(order.amount)}</strong>
+        </div>
+        <div>
+          <span class="detail-label">Valor pago</span>
+          <strong>${formatCurrency(order.amountPaid)}</strong>
+        </div>
+        <div>
+          <span class="detail-label">Saldo restante</span>
+          <strong>${formatCurrency(order.remainingAmount)}</strong>
         </div>
       </div>
     </div>
@@ -1460,7 +1549,11 @@ function renderFinance() {
               </td>
               <td>${item.service}</td>
               <td>${formatDate(item.date)}</td>
-              <td>${formatCurrency(item.amount)}</td>
+              <td>${formatCurrency(item.amountPaid)}</td>
+              <td>
+                <strong>${formatCurrency(item.remainingAmount)}</strong><br>
+                <span class="table-subline">Total ${formatCurrency(item.amount)}</span>
+              </td>
               <td>
                 <select class="status-select" data-payment-id="${item.id}">
                   ${paymentStatuses
@@ -1476,7 +1569,7 @@ function renderFinance() {
           `
         )
         .join("")
-    : `<tr><td colspan="6"><div class="empty-state">Nenhum recebivel encontrado.</div></td></tr>`;
+    : `<tr><td colspan="7"><div class="empty-state">Nenhum recebivel encontrado.</div></td></tr>`;
 
   elements.financeEntriesTable.innerHTML = state.meta.financeModuleReady
     ? financeData.entries.length
@@ -1558,13 +1651,29 @@ function renderFinance() {
   document.querySelectorAll("[data-payment-id]").forEach((select) => {
     select.addEventListener("change", async (event) => {
       try {
+        const order = state.orders.find((item) => item.id === event.target.dataset.paymentId);
+        const nextStatus = event.target.value;
+
+        if (nextStatus === "Parcial" && (!order || order.amountPaid <= 0 || order.amountPaid >= order.amount)) {
+          event.target.value = order?.paymentStatus || "Pendente";
+          showFeedback("Para usar pagamento parcial, edite a OS e informe quanto o cliente ja pagou.", "error");
+          return;
+        }
+
+        const nextAmountPaid =
+          nextStatus === "Pago"
+            ? Number(order?.amount || 0)
+            : nextStatus === "Pendente"
+              ? 0
+              : Number(order?.amountPaid || 0);
+
         const { error } = await supabaseClient
           .from("orders")
-          .update({ payment_status: event.target.value })
+          .update({ payment_status: nextStatus, amount_paid: nextAmountPaid })
           .eq("id", event.target.dataset.paymentId);
 
         throwIfError(error);
-        await insertActivity("Financeiro atualizado", `Pagamento de OS alterado para ${event.target.value}.`);
+        await insertActivity("Financeiro atualizado", `Pagamento de OS alterado para ${nextStatus}.`);
         await bootstrap();
         showFeedback("Pagamento atualizado com sucesso.", "success");
       } catch (error) {
@@ -1600,14 +1709,8 @@ function buildFinanceData() {
   const currentMonthKey = today.slice(0, 7);
 
   const orderProjected = sumAmounts(orders, "amount");
-  const paidOrders = sumAmounts(
-    orders.filter((order) => order.paymentStatus === "Pago"),
-    "amount"
-  );
-  const openOrders = sumAmounts(
-    orders.filter((order) => order.paymentStatus !== "Pago"),
-    "amount"
-  );
+  const paidOrders = sumAmounts(orders, "amountPaid");
+  const openOrders = sumAmounts(orders, "remainingAmount");
   const manualRevenuePaid = sumAmounts(
     entries.filter((entry) => entry.entryType === "Receita" && entry.status === "Pago"),
     "amount"
@@ -1632,7 +1735,7 @@ function buildFinanceData() {
   const averageTicket = orders.length ? orderProjected / orders.length : 0;
   const overdueReceivables = sumAmounts(
     receivables.filter((item) => item.date < today),
-    "amount"
+    "remainingAmount"
   ) +
     sumAmounts(
       entries.filter((entry) => entry.entryType === "Receita" && entry.status !== "Pago" && entry.entryDate < today),
@@ -1642,7 +1745,7 @@ function buildFinanceData() {
   const monthOrders = orders.filter((order) => order.date.slice(0, 7) === currentMonthKey);
   const monthEntries = entries.filter((entry) => entry.entryDate.slice(0, 7) === currentMonthKey);
   const monthRevenue =
-    sumAmounts(monthOrders.filter((order) => order.paymentStatus === "Pago"), "amount") +
+    sumAmounts(monthOrders, "amountPaid") +
     sumAmounts(monthEntries.filter((entry) => entry.entryType === "Receita" && entry.status === "Pago"), "amount");
   const monthExpenses = sumAmounts(
     monthEntries.filter((entry) => entry.entryType === "Despesa" && entry.status === "Pago"),
@@ -1688,7 +1791,7 @@ function buildFinanceData() {
         label: "Receita confirmada",
         value: formatCurrency(confirmedRevenue),
         hint: "OS pagas + receitas extras liquidadas",
-        trend: `${orders.filter((order) => order.paymentStatus === "Pago").length} OS recebidas`,
+        trend: `${orders.filter((order) => order.amountPaid > 0).length} OS com entrada recebida`,
         tone: "is-positive",
       },
       {
@@ -1806,7 +1909,7 @@ function buildFinanceTimeline(receivables, entries) {
       sortDate: item.date,
       title: `Recebimento ${item.code}`,
       description: `${item.customer} - ${item.service}`,
-      amount: Number(item.amount || 0),
+      amount: Number(item.remainingAmount || 0),
       amountTone: "finance-positive",
       when: formatDate(item.date),
     })),
@@ -2011,6 +2114,8 @@ function getFilteredOrders() {
       order.notes,
       order.status,
       order.paymentStatus,
+      formatCurrency(order.amountPaid),
+      formatCurrency(order.remainingAmount),
       formatDate(order.date),
       formatDateTime(order.date, order.time),
     ])
@@ -2051,7 +2156,7 @@ function getFilteredActivities() {
 function getFilteredReceivables() {
   return state.orders.filter(
     (order) =>
-      order.paymentStatus !== "Pago" &&
+      order.remainingAmount > 0 &&
       matchesSearch([
         order.code,
         order.customer,
@@ -2059,6 +2164,8 @@ function getFilteredReceivables() {
         order.service,
         order.address,
         order.paymentStatus,
+        formatCurrency(order.amountPaid),
+        formatCurrency(order.remainingAmount),
         formatDate(order.date),
       ])
   );
@@ -2172,6 +2279,14 @@ function mapAppointment(row) {
 }
 
 function mapOrder(row, attachmentsByOrder = {}) {
+  const totalAmount = Number(row.amount || 0);
+  const explicitAmountPaid = Number(row.amount_paid);
+  const amountPaid = Number.isFinite(explicitAmountPaid)
+    ? Math.max(0, Math.min(explicitAmountPaid, totalAmount))
+    : row.payment_status === "Pago"
+      ? totalAmount
+      : 0;
+
   return {
     id: row.id,
     code: row.code,
@@ -2181,7 +2296,9 @@ function mapOrder(row, attachmentsByOrder = {}) {
     address: row.address,
     date: String(row.date),
     time: row.time,
-    amount: Number(row.amount || 0),
+    amount: totalAmount,
+    amountPaid,
+    remainingAmount: Math.max(totalAmount - amountPaid, 0),
     status: row.status,
     paymentStatus: row.payment_status,
     notes: row.notes,
@@ -2233,6 +2350,10 @@ function translateError(message) {
     return "O modulo financeiro precisa do upgrade SQL no Supabase para salvar lancamentos.";
   }
 
+  if (message.includes("amount_paid")) {
+    return "O banco precisa do upgrade de pagamentos da OS para salvar valor pago e saldo restante.";
+  }
+
   return message;
 }
 
@@ -2241,6 +2362,10 @@ function formatCurrency(value) {
     style: "currency",
     currency: "BRL",
   }).format(Number(value || 0));
+}
+
+function parseMoneyInput(value) {
+  return Number.parseFloat(String(value || "0").replace(",", ".")) || 0;
 }
 
 function formatPercent(value) {
@@ -2709,7 +2834,19 @@ function printOrder(order) {
               </div>
               <div class="card">
                 <span class="label">Pagamento</span>
-                <strong class="value">${escapeHtml(order.paymentStatus)} · ${escapeHtml(formatCurrency(order.amount))}</strong>
+                <strong class="value">${escapeHtml(order.paymentStatus)}</strong>
+              </div>
+              <div class="card">
+                <span class="label">Valor total</span>
+                <strong class="value">${escapeHtml(formatCurrency(order.amount))}</strong>
+              </div>
+              <div class="card">
+                <span class="label">Valor pago</span>
+                <strong class="value">${escapeHtml(formatCurrency(order.amountPaid))}</strong>
+              </div>
+              <div class="card">
+                <span class="label">Saldo restante</span>
+                <strong class="value">${escapeHtml(formatCurrency(order.remainingAmount))}</strong>
               </div>
             </div>
 
@@ -2959,11 +3096,23 @@ function printOrderSafe(order) {
                   <span class="label">Status da OS</span>
                   <strong class="value">${escapeHtml(order.status)}</strong>
                 </div>
-                <div class="card">
-                  <span class="label">Pagamento</span>
-                  <strong class="value">${escapeHtml(order.paymentStatus)} · ${escapeHtml(formatCurrency(order.amount))}</strong>
-                </div>
+              <div class="card">
+                <span class="label">Pagamento</span>
+                <strong class="value">${escapeHtml(order.paymentStatus)}</strong>
               </div>
+              <div class="card">
+                <span class="label">Valor total</span>
+                <strong class="value">${escapeHtml(formatCurrency(order.amount))}</strong>
+              </div>
+              <div class="card">
+                <span class="label">Valor pago</span>
+                <strong class="value">${escapeHtml(formatCurrency(order.amountPaid))}</strong>
+              </div>
+              <div class="card">
+                <span class="label">Saldo restante</span>
+                <strong class="value">${escapeHtml(formatCurrency(order.remainingAmount))}</strong>
+              </div>
+            </div>
 
               <div class="card">
                 <span class="label">Endereco</span>
