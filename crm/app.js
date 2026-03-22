@@ -31,6 +31,7 @@ const elements = {
   appShell: document.getElementById("app-shell"),
   loginForm: document.getElementById("login-form"),
   loginError: document.getElementById("login-error"),
+  appFeedback: document.getElementById("app-feedback"),
   pageTitle: document.getElementById("page-title"),
   currentDate: document.getElementById("current-date"),
   loggedUserName: document.getElementById("logged-user-name"),
@@ -105,8 +106,14 @@ async function initialize() {
   }
 
   currentUser = session.user;
-  await bootstrap();
-  showApp();
+  try {
+    await bootstrap();
+    showApp();
+  } catch (error) {
+    showLogin();
+    elements.loginError.textContent = translateError(error.message);
+    elements.loginError.hidden = false;
+  }
 }
 
 function createSupabaseClient() {
@@ -138,8 +145,13 @@ function bindAuthentication() {
     }
 
     currentUser = data.user;
-    await bootstrap();
-    showApp();
+    try {
+      await bootstrap();
+      showApp();
+    } catch (bootstrapError) {
+      elements.loginError.textContent = translateError(bootstrapError.message);
+      elements.loginError.hidden = false;
+    }
   });
 
   elements.logoutButton.addEventListener("click", async () => {
@@ -240,75 +252,96 @@ function bindModals() {
 function bindForms() {
   elements.leadForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const form = new FormData(elements.leadForm);
+    clearFeedback();
 
-    const { error } = await supabaseClient.from("leads").insert({
-      name: form.get("name"),
-      phone: form.get("phone"),
-      service: form.get("service"),
-      address: form.get("address"),
-      source: form.get("source"),
-      priority: form.get("priority"),
-      status: "novo",
-      notes: form.get("notes"),
-      last_contact: "Agora",
-    });
+    try {
+      const form = new FormData(elements.leadForm);
 
-    throwIfError(error);
-    await insertActivity("Novo lead cadastrado", `${form.get("name")} entrou para ${form.get("service")}.`);
-    elements.leadForm.reset();
-    elements.leadModal.close();
-    await bootstrap();
+      const { error } = await supabaseClient.from("leads").insert({
+        name: form.get("name"),
+        phone: form.get("phone"),
+        service: form.get("service"),
+        address: form.get("address"),
+        source: form.get("source"),
+        priority: form.get("priority"),
+        status: "novo",
+        notes: form.get("notes"),
+        last_contact: "Agora",
+      });
+
+      throwIfError(error);
+      await insertActivity("Novo lead cadastrado", `${form.get("name")} entrou para ${form.get("service")}.`);
+      elements.leadForm.reset();
+      elements.leadModal.close();
+      await bootstrap();
+      showFeedback("Lead salvo com sucesso.", "success");
+    } catch (error) {
+      showFeedback(translateError(error.message), "error");
+    }
   });
 
   elements.appointmentForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const form = new FormData(elements.appointmentForm);
+    clearFeedback();
 
-    const { error } = await supabaseClient.from("appointments").insert({
-      customer: form.get("customer"),
-      phone: form.get("phone"),
-      service: form.get("service"),
-      address: form.get("address"),
-      date: form.get("date"),
-      time: form.get("time"),
-      notes: form.get("notes"),
-    });
+    try {
+      const form = new FormData(elements.appointmentForm);
 
-    throwIfError(error);
-    await insertActivity("Visita agendada", `${form.get("customer")} foi agendado para ${form.get("date")} as ${form.get("time")}.`);
-    elements.appointmentForm.reset();
-    elements.appointmentModal.close();
-    await bootstrap();
-  });
-
-  elements.orderForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const form = new FormData(elements.orderForm);
-
-    const { data, error } = await supabaseClient
-      .from("orders")
-      .insert({
+      const { error } = await supabaseClient.from("appointments").insert({
         customer: form.get("customer"),
         phone: form.get("phone"),
         service: form.get("service"),
         address: form.get("address"),
         date: form.get("date"),
         time: form.get("time"),
-        amount: Number(form.get("amount") || 0),
-        status: form.get("status"),
-        payment_status: form.get("paymentStatus"),
         notes: form.get("notes"),
-      })
-      .select("id")
-      .single();
+      });
 
-    throwIfError(error);
-    await insertActivity("Nova OS criada", `${form.get("customer")} entrou em execucao para ${form.get("service")}.`);
-    selectedOrderId = data.id;
-    elements.orderForm.reset();
-    elements.orderModal.close();
-    await bootstrap();
+      throwIfError(error);
+      await insertActivity("Visita agendada", `${form.get("customer")} foi agendado para ${form.get("date")} as ${form.get("time")}.`);
+      elements.appointmentForm.reset();
+      elements.appointmentModal.close();
+      await bootstrap();
+      showFeedback("Visita agendada com sucesso.", "success");
+    } catch (error) {
+      showFeedback(translateError(error.message), "error");
+    }
+  });
+
+  elements.orderForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    clearFeedback();
+
+    try {
+      const form = new FormData(elements.orderForm);
+
+      const { data, error } = await supabaseClient
+        .from("orders")
+        .insert({
+          customer: form.get("customer"),
+          phone: form.get("phone"),
+          service: form.get("service"),
+          address: form.get("address"),
+          date: form.get("date"),
+          time: form.get("time"),
+          amount: Number(form.get("amount") || 0),
+          status: form.get("status"),
+          payment_status: form.get("paymentStatus"),
+          notes: form.get("notes"),
+        })
+        .select("id")
+        .single();
+
+      throwIfError(error);
+      await insertActivity("Nova OS criada", `${form.get("customer")} entrou em execucao para ${form.get("service")}.`);
+      selectedOrderId = data.id;
+      elements.orderForm.reset();
+      elements.orderModal.close();
+      await bootstrap();
+      showFeedback("Ordem de servico criada com sucesso.", "success");
+    } catch (error) {
+      showFeedback(translateError(error.message), "error");
+    }
   });
 }
 
@@ -343,6 +376,26 @@ function showApp() {
 function showLogin() {
   elements.authShell.classList.remove("is-hidden");
   elements.appShell.classList.add("is-hidden");
+}
+
+function showFeedback(message, type = "success") {
+  if (!elements.appFeedback) {
+    return;
+  }
+
+  elements.appFeedback.textContent = message;
+  elements.appFeedback.classList.remove("is-hidden", "is-success", "is-error");
+  elements.appFeedback.classList.add(type === "error" ? "is-error" : "is-success");
+}
+
+function clearFeedback() {
+  if (!elements.appFeedback) {
+    return;
+  }
+
+  elements.appFeedback.textContent = "";
+  elements.appFeedback.classList.add("is-hidden");
+  elements.appFeedback.classList.remove("is-success", "is-error");
 }
 
 function renderAll() {
@@ -531,6 +584,7 @@ function bindPipelineInteractions() {
       throwIfError(error);
       await insertActivity("Lead atualizado", `Lead movido para ${zone.dataset.dropzone}.`);
       await bootstrap();
+      showFeedback("Pipeline atualizado com sucesso.", "success");
     });
   });
 
@@ -544,6 +598,7 @@ function bindPipelineInteractions() {
       throwIfError(error);
       await insertActivity("Lead atualizado", `Lead movido para ${event.target.value}.`);
       await bootstrap();
+      showFeedback("Lead atualizado com sucesso.", "success");
     });
   });
 }
@@ -652,6 +707,7 @@ function renderOrders() {
       throwIfError(error);
       await insertActivity("OS atualizada", `A ordem foi movida para ${event.target.value}.`);
       await bootstrap();
+      showFeedback("Status da OS atualizado.", "success");
     });
   });
 
@@ -766,9 +822,11 @@ async function renderSelectedOrder() {
     try {
       await uploadAttachment(selectedOrderId, event.currentTarget);
       await bootstrap();
+      showFeedback("Anexo enviado com sucesso.", "success");
     } catch (uploadError) {
       errorElement.textContent = translateError(uploadError.message);
       errorElement.hidden = false;
+      showFeedback(translateError(uploadError.message), "error");
     }
   });
 }
@@ -840,6 +898,7 @@ function renderFinance() {
       throwIfError(error);
       await insertActivity("Financeiro atualizado", `Pagamento alterado para ${event.target.value}.`);
       await bootstrap();
+      showFeedback("Pagamento atualizado com sucesso.", "success");
     });
   });
 }

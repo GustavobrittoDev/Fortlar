@@ -15,19 +15,24 @@
     href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
     rel="stylesheet"
   >
-  <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
   <section class="auth-shell" id="auth-shell">
     <div class="auth-card">
       <div class="auth-brand">
-        <img src="../assets/logo-fortlar-transparent.png" alt="Logo Fort Lar" class="auth-logo">
+        <img src="./assets/logo-fortlar-transparent.png" alt="Logo Fort Lar" class="auth-logo">
         <div>
           <span class="eyebrow">CRM Fort Lar</span>
           <h1>Controle profissional da operacao</h1>
           <p>Login, agenda, leads, ordens de servico, anexos e acompanhamento completo em um unico painel.</p>
+        </div>
+        <div class="auth-highlights">
+          <span>Pipeline comercial</span>
+          <span>Agenda de visitas</span>
+          <span>Ordens e anexos</span>
         </div>
       </div>
 
@@ -50,7 +55,7 @@
   <div class="app-shell is-hidden" id="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand-panel">
-        <img src="../assets/logo-fortlar-transparent.png" alt="Logo Fort Lar" class="brand-logo">
+        <img src="./assets/logo-fortlar-transparent.png" alt="Logo Fort Lar" class="brand-logo">
         <div>
           <strong>Fort Lar CRM</strong>
           <p>Vendas, atendimento, execucao e financeiro no mesmo fluxo.</p>
@@ -109,15 +114,19 @@
             </svg>
             <input id="global-search" type="search" placeholder="Buscar lead, cliente, OS...">
           </label>
-          <div class="topbar-meta">
-            <span id="current-date"></span>
-            <strong id="logged-user-name">Cleiton Castelari</strong>
+          <div class="topbar-actions">
+            <div class="topbar-meta">
+              <span id="current-date"></span>
+              <strong id="logged-user-name">Cleiton Castelari</strong>
+            </div>
+            <button class="ghost-button" id="logout-button">Sair</button>
+            <button class="action-button" data-open-modal="lead-modal">Novo lead</button>
+            <button class="action-button secondary" data-open-modal="order-modal">Nova OS</button>
           </div>
-          <button class="ghost-button" id="logout-button">Sair</button>
-          <button class="action-button" data-open-modal="lead-modal">Novo lead</button>
-          <button class="action-button secondary" data-open-modal="order-modal">Nova OS</button>
         </div>
       </header>
+
+      <div class="feedback-banner is-hidden" id="app-feedback"></div>
 
       <section class="page-section is-active" id="dashboard">
         <div class="section-head">

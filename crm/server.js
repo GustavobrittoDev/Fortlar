@@ -7,7 +7,7 @@ const ROOT = __dirname;
 
 app.use(express.static(ROOT));
 
-app.get("*", (_req, res) => {
+app.use((_req, res) => {
   res.sendFile(path.join(ROOT, "index.html"));
 });
 
