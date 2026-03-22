@@ -14,6 +14,7 @@ let supabaseClient = null;
 let currentUser = null;
 let searchQuery = "";
 let selectedOrderId = null;
+const expandedLeadIds = new Set();
 
 let state = {
   meta: {
@@ -686,6 +687,14 @@ function bindSidebar() {
 
 function bindActionDelegation() {
   document.addEventListener("click", async (event) => {
+    const toggleLeadButton = event.target.closest("[data-toggle-lead]");
+
+    if (toggleLeadButton) {
+      event.preventDefault();
+      toggleLeadDrawer(toggleLeadButton.dataset.toggleLead);
+      return;
+    }
+
     const editLeadButton = event.target.closest("[data-edit-lead]");
 
     if (editLeadButton) {
@@ -932,69 +941,72 @@ function renderPipeline() {
             ${
               leads.length
                 ? leads
-                    .map(
-                      (lead) => `
-                        <div class="lead-card" draggable="true" data-lead-id="${lead.id}">
+                    .map((lead) => {
+                      const isOpen = expandedLeadIds.has(lead.id);
+
+                      return `
+                        <div class="lead-card ${isOpen ? "is-open" : ""}" draggable="true" data-lead-id="${lead.id}">
                           <div class="lead-card-header">
-                            <div class="lead-title-group">
-                              <strong>${lead.name}</strong>
-                              <span class="lead-id">${lead.id}</span>
+                            <div class="lead-summary-main">
+                              <div class="lead-title-group">
+                                <strong>${lead.name}</strong>
+                                <span class="lead-id">${lead.id}</span>
+                              </div>
+                              <div class="lead-summary-inline">
+                                <span class="badge">${lead.service}</span>
+                                <span class="lead-source">${lead.source}</span>
+                              </div>
                             </div>
                             <div class="lead-header-actions">
                               <span class="priority ${normalizeKey(lead.priority)}">${lead.priority}</span>
                               <button
-                                class="action-icon-button"
+                                class="action-icon-button drawer-toggle ${isOpen ? "is-open" : ""}"
                                 type="button"
-                                data-edit-lead="${lead.id}"
-                                aria-label="Editar lead ${escapeHtml(lead.name)}"
-                                title="Editar lead"
+                                data-toggle-lead="${lead.id}"
+                                aria-label="${isOpen ? "Fechar" : "Abrir"} detalhes do lead ${escapeHtml(lead.name)}"
+                                title="${isOpen ? "Fechar" : "Abrir"} detalhes"
                               >
                                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                  <path d="M4 20H8L18.5 9.5C19.33 8.67 19.33 7.33 18.5 6.5V6.5C17.67 5.67 16.33 5.67 15.5 6.5L5 17V20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                              </button>
-                              <button
-                                class="action-icon-button danger-button"
-                                type="button"
-                                data-delete-lead="${lead.id}"
-                                aria-label="Excluir lead ${escapeHtml(lead.name)}"
-                                title="Excluir lead"
-                              >
-                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                  <path d="M4 7H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                  <path d="M9 7V5.5C9 4.67 9.67 4 10.5 4H13.5C14.33 4 15 4.67 15 5.5V7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                  <path d="M7.5 9.5V17.5C7.5 18.33 8.17 19 9 19H15C15.83 19 16.5 18.33 16.5 17.5V9.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                  <path d="M10 11V16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                  <path d="M14 11V16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                  <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
                               </button>
                             </div>
                           </div>
-                          <div class="lead-card-body">
-                            <div class="lead-meta-row">
-                              <span class="badge">${lead.service}</span>
-                              <span class="lead-source">${lead.source}</span>
-                            </div>
-                            <p class="lead-note">${lead.notes}</p>
-                            <div class="lead-contact-list">
-                              <span class="lead-contact-item">${lead.address}</span>
-                              <span class="lead-contact-item">${lead.phone}</span>
-                            </div>
+                          <div class="lead-card-subline">
+                            <span>${lead.address}</span>
+                            <span>${lead.phone}</span>
                           </div>
-                          <div class="lead-card-actions">
-                            <select class="status-select" data-lead-status="${lead.id}">
-                              ${leadStages
-                                .map(
-                                  (item) => `
-                                    <option value="${item.key}" ${lead.status === item.key ? "selected" : ""}>${item.label}</option>
-                                  `
-                                )
-                                .join("")}
-                            </select>
+                          <div class="lead-drawer ${isOpen ? "is-open" : ""}">
+                            <div class="lead-card-body">
+                              <p class="lead-note">${lead.notes}</p>
+                              <div class="lead-contact-list">
+                                <span class="lead-contact-item">Origem: ${lead.source}</span>
+                                <span class="lead-contact-item">Servico: ${lead.service}</span>
+                              </div>
+                            </div>
+                            <div class="lead-card-footer">
+                              <select class="status-select" data-lead-status="${lead.id}">
+                                ${leadStages
+                                  .map(
+                                    (item) => `
+                                      <option value="${item.key}" ${lead.status === item.key ? "selected" : ""}>${item.label}</option>
+                                    `
+                                  )
+                                  .join("")}
+                              </select>
+                              <div class="table-actions lead-footer-actions">
+                                <button class="ghost-button table-button" type="button" data-edit-lead="${lead.id}">
+                                  Editar
+                                </button>
+                                <button class="ghost-button table-button danger-button" type="button" data-delete-lead="${lead.id}">
+                                  Excluir
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      `
-                    )
+                      `;
+                    })
                     .join("")
                 : `<div class="empty-state">Sem leads neste estagio.</div>`
             }
@@ -1054,6 +1066,21 @@ function bindPipelineInteractions() {
       showFeedback("Lead atualizado com sucesso.", "success");
     });
   });
+}
+
+function toggleLeadDrawer(leadId) {
+  if (!leadId) {
+    return;
+  }
+
+  if (expandedLeadIds.has(leadId)) {
+    expandedLeadIds.delete(leadId);
+  } else {
+    expandedLeadIds.clear();
+    expandedLeadIds.add(leadId);
+  }
+
+  renderPipeline();
 }
 
 function renderCustomers() {
@@ -2292,6 +2319,7 @@ async function deleteLead(leadId) {
   try {
     const { error } = await supabaseClient.from("leads").delete().eq("id", leadId);
     throwIfError(error);
+    expandedLeadIds.delete(leadId);
     await insertActivity("Contato excluido", `${lead?.name || "Lead"} foi removido do CRM.`);
     await bootstrap();
     showFeedback("Contato excluido com sucesso.", "success");
