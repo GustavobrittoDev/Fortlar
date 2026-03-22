@@ -950,7 +950,6 @@ function renderPipeline() {
                             <div class="lead-summary-main">
                               <div class="lead-title-group">
                                 <strong>${lead.name}</strong>
-                                <span class="lead-id">${lead.id}</span>
                               </div>
                               <div class="lead-summary-inline">
                                 <span class="badge">${lead.service}</span>
