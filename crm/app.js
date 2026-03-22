@@ -10,6 +10,7 @@ const orderStatuses = ["Agendado", "Em andamento", "Concluido", "Cancelado"];
 const paymentStatuses = ["Pendente", "Parcial", "Pago"];
 const financialEntryStatuses = ["Pendente", "Pago"];
 const LOCAL_FINANCE_STORAGE_KEY = "fortlar_financial_entries_v1";
+const LOCAL_ORDER_PAYMENTS_STORAGE_KEY = "fortlar_order_payments_v1";
 
 let supabaseClient = null;
 let currentUser = null;
@@ -23,6 +24,7 @@ let state = {
     storageBucket: "crm-anexos",
     financeModuleReady: true,
     financePersistenceMode: "supabase",
+    orderPaymentsPersistenceMode: "supabase",
   },
   stats: {},
   leads: [],
@@ -450,6 +452,8 @@ async function bootstrap() {
   throwIfError(ordersResult.error);
   throwIfError(activitiesResult.error);
 
+  state.meta.orderPaymentsPersistenceMode = hasOrderPaymentColumn(ordersResult.data || []) ? "supabase" : "local";
+
   currentUser.profile = profileResult.data || {};
 
   const attachmentsByOrder = await fetchAttachmentCounts();
@@ -661,12 +665,32 @@ function bindForms() {
           notes: form.get("notes"),
         };
 
-      const query = orderId
+      let data = null;
+      let query = orderId
         ? supabaseClient.from("orders").update(payload).eq("id", orderId).select("id").single()
         : supabaseClient.from("orders").insert(payload).select("id").single();
-      const { data, error } = await query;
+      let { data: queryData, error } = await query;
 
-      throwIfError(error);
+      if (isMissingOrderAmountPaidError(error)) {
+        const fallbackPayload = { ...payload };
+        delete fallbackPayload.amount_paid;
+
+        query = orderId
+          ? supabaseClient.from("orders").update(fallbackPayload).eq("id", orderId).select("id").single()
+          : supabaseClient.from("orders").insert(fallbackPayload).select("id").single();
+
+        const fallbackResult = await query;
+        data = fallbackResult.data;
+        throwIfError(fallbackResult.error);
+        saveLocalOrderPayment(data.id, paymentState);
+        state.meta.orderPaymentsPersistenceMode = "local";
+      } else {
+        throwIfError(error);
+        data = queryData;
+        removeLocalOrderPayment(data.id);
+        state.meta.orderPaymentsPersistenceMode = "supabase";
+      }
+
       await insertActivity(
         orderId ? "OS atualizada" : "Nova OS criada",
         orderId
@@ -1799,7 +1823,25 @@ function renderFinance() {
           .update({ payment_status: nextStatus, amount_paid: nextAmountPaid })
           .eq("id", event.target.dataset.paymentId);
 
-        throwIfError(error);
+        if (isMissingOrderAmountPaidError(error)) {
+          const { error: fallbackError } = await supabaseClient
+            .from("orders")
+            .update({ payment_status: nextStatus })
+            .eq("id", event.target.dataset.paymentId);
+
+          throwIfError(fallbackError);
+          saveLocalOrderPayment(event.target.dataset.paymentId, {
+            total: Number(order?.amount || 0),
+            amountPaid: nextAmountPaid,
+            paymentStatus: nextStatus,
+          });
+          state.meta.orderPaymentsPersistenceMode = "local";
+        } else {
+          throwIfError(error);
+          removeLocalOrderPayment(event.target.dataset.paymentId);
+          state.meta.orderPaymentsPersistenceMode = "supabase";
+        }
+
         await insertActivity("Financeiro atualizado", `Pagamento de OS alterado para ${nextStatus}.`);
         await bootstrap();
         showFeedback("Pagamento atualizado com sucesso.", "success");
@@ -2465,12 +2507,17 @@ function mapAppointment(row) {
 
 function mapOrder(row, attachmentsByOrder = {}) {
   const totalAmount = Number(row.amount || 0);
+  const localPayment = getLocalOrderPayment(row.id);
   const explicitAmountPaid = Number(row.amount_paid);
-  const amountPaid = Number.isFinite(explicitAmountPaid)
+  const remoteAmountPaid = Number.isFinite(explicitAmountPaid)
     ? Math.max(0, Math.min(explicitAmountPaid, totalAmount))
     : row.payment_status === "Pago"
       ? totalAmount
       : 0;
+  const amountPaid = localPayment
+    ? Math.max(0, Math.min(Number(localPayment.amountPaid || 0), totalAmount))
+    : remoteAmountPaid;
+  const paymentStatus = localPayment?.paymentStatus || row.payment_status;
 
   return {
     id: row.id,
@@ -2485,7 +2532,7 @@ function mapOrder(row, attachmentsByOrder = {}) {
     amountPaid,
     remainingAmount: Math.max(totalAmount - amountPaid, 0),
     status: row.status,
-    paymentStatus: row.payment_status,
+    paymentStatus,
     notes: row.notes,
     createdAt: row.created_at,
     attachmentCount: attachmentsByOrder[row.id] || 0,
@@ -2634,6 +2681,63 @@ function generateFinancialEntryId() {
   return `fin-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 }
 
+function loadLocalOrderPayments() {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  try {
+    const raw = window.localStorage.getItem(LOCAL_ORDER_PAYMENTS_STORAGE_KEY);
+    const parsed = JSON.parse(raw || "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (_error) {
+    return {};
+  }
+}
+
+function persistLocalOrderPayments(payments) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(LOCAL_ORDER_PAYMENTS_STORAGE_KEY, JSON.stringify(payments));
+}
+
+function getLocalOrderPayment(orderId) {
+  if (!orderId) {
+    return null;
+  }
+
+  const payments = loadLocalOrderPayments();
+  return payments[orderId] || null;
+}
+
+function saveLocalOrderPayment(orderId, paymentState) {
+  if (!orderId) {
+    return;
+  }
+
+  const payments = loadLocalOrderPayments();
+  payments[orderId] = {
+    amountPaid: Number(paymentState?.amountPaid || 0),
+    paymentStatus: paymentState?.paymentStatus || "Pendente",
+    updatedAt: new Date().toISOString(),
+  };
+  persistLocalOrderPayments(payments);
+}
+
+function removeLocalOrderPayment(orderId) {
+  if (!orderId) {
+    return;
+  }
+
+  const payments = loadLocalOrderPayments();
+  if (payments[orderId]) {
+    delete payments[orderId];
+    persistLocalOrderPayments(payments);
+  }
+}
+
 function getCashMovementConfig(movementType) {
   if (movementType === "saida") {
     return {
@@ -2780,6 +2884,21 @@ function isMissingFinancialTableError(error) {
   );
 }
 
+function isMissingOrderAmountPaidError(error) {
+  const message = String(error?.message || "");
+  const details = String(error?.details || "");
+  return (
+    error?.code === "42703" ||
+    message.includes("amount_paid") ||
+    message.includes("Could not find the 'amount_paid' column") ||
+    details.includes("amount_paid")
+  );
+}
+
+function hasOrderPaymentColumn(rows) {
+  return !rows.length || Object.prototype.hasOwnProperty.call(rows[0], "amount_paid");
+}
+
 function sanitizeFileName(name) {
   return String(name)
     .normalize("NFD")
@@ -2901,6 +3020,7 @@ async function deleteOrder(orderId) {
 
     const { error } = await supabaseClient.from("orders").delete().eq("id", orderId);
     throwIfError(error);
+    removeLocalOrderPayment(orderId);
 
     if (selectedOrderId === orderId) {
       selectedOrderId = null;
