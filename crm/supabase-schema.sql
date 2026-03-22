@@ -86,6 +86,15 @@ for all to authenticated
 using (true)
 with check (true);
 
+drop policy if exists "public site lead insert" on public.leads;
+create policy "public site lead insert" on public.leads
+for insert to anon
+with check (
+  source = 'Site'
+  and status = 'novo'
+  and priority in ('Alta', 'Media', 'Baixa')
+);
+
 drop policy if exists "authenticated appointments" on public.appointments;
 create policy "authenticated appointments" on public.appointments
 for all to authenticated

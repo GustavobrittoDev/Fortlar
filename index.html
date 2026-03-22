@@ -757,6 +757,39 @@
       text-align: center;
     }
 
+    .quote-feedback {
+      margin: 0;
+      padding: 0.85rem 1rem;
+      border-radius: 16px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      text-align: center;
+      border: 1px solid transparent;
+    }
+
+    .quote-feedback.is-hidden {
+      display: none;
+    }
+
+    .quote-feedback.is-success {
+      color: #17643f;
+      background: rgba(31, 164, 99, 0.12);
+      border-color: rgba(31, 164, 99, 0.18);
+    }
+
+    .quote-feedback.is-error {
+      color: #8a2f2f;
+      background: rgba(239, 91, 91, 0.12);
+      border-color: rgba(239, 91, 91, 0.18);
+    }
+
+    .primary-btn:disabled {
+      cursor: wait;
+      opacity: 0.78;
+      transform: none;
+      box-shadow: 0 12px 24px rgba(31, 164, 99, 0.18);
+    }
+
     footer {
       padding: 2rem 0 6rem;
     }
@@ -1225,6 +1258,7 @@
               </div>
               <button class="primary-btn" type="submit">Solicitar orçamento pelo WhatsApp</button>
               <p class="quote-note">Quanto mais detalhes você enviar, mais rápido fica o orçamento.</p>
+              <p class="quote-feedback is-hidden" id="quote-feedback" aria-live="polite"></p>
             </form>
           </div>
           <div class="hero-points">
@@ -1456,9 +1490,62 @@
     </div>
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const quoteForm = document.getElementById("quote-form");
+    const quoteFeedback = document.getElementById("quote-feedback");
     const mobileMenu = document.querySelector(".nav-mobile");
+    const quoteSubmitButton = quoteForm ? quoteForm.querySelector('button[type="submit"]') : null;
+    const siteSupabaseConfig = {
+      supabaseUrl: "https://wrwiiagclkzrjdlpwwxh.supabase.co",
+      supabaseAnonKey: "sb_publishable_OMOptrkZsI8I64fCzAg9xQ_Ucwj7XL7"
+    };
+    const siteSupabaseClient =
+      window.supabase && siteSupabaseConfig.supabaseUrl && siteSupabaseConfig.supabaseAnonKey
+        ? window.supabase.createClient(siteSupabaseConfig.supabaseUrl, siteSupabaseConfig.supabaseAnonKey)
+        : null;
+
+    function showQuoteFeedback(message, type) {
+      if (!quoteFeedback) {
+        return;
+      }
+
+      quoteFeedback.textContent = message;
+      quoteFeedback.classList.remove("is-hidden", "is-success", "is-error");
+      quoteFeedback.classList.add(type === "error" ? "is-error" : "is-success");
+    }
+
+    function clearQuoteFeedback() {
+      if (!quoteFeedback) {
+        return;
+      }
+
+      quoteFeedback.textContent = "";
+      quoteFeedback.classList.add("is-hidden");
+      quoteFeedback.classList.remove("is-success", "is-error");
+    }
+
+    async function saveLeadFromSite(payload) {
+      if (!siteSupabaseClient) {
+        throw new Error("Cliente do Supabase não disponível.");
+      }
+
+      const { error } = await siteSupabaseClient.from("leads").insert({
+        name: payload.name,
+        phone: "Informado pelo WhatsApp",
+        service: payload.service,
+        address: payload.address,
+        source: "Site",
+        priority: "Alta",
+        status: "novo",
+        notes: payload.description,
+        last_contact: "Lead recebido pelo site"
+      });
+
+      if (error) {
+        throw error;
+      }
+    }
 
     if (mobileMenu) {
       mobileMenu.querySelectorAll("a").forEach(function (link) {
@@ -1469,8 +1556,9 @@
     }
 
     if (quoteForm) {
-      quoteForm.addEventListener("submit", function (event) {
+      quoteForm.addEventListener("submit", async function (event) {
         event.preventDefault();
+        clearQuoteFeedback();
 
         if (!quoteForm.reportValidity()) {
           return;
@@ -1490,8 +1578,33 @@
           description + "\n\n" +
           "Vim pelo site e gostaria de um orçamento.";
 
-        const url = "https://wa.me/5512996619062?text=" + encodeURIComponent(message);
-        window.open(url, "_blank", "noopener");
+        if (quoteSubmitButton) {
+          quoteSubmitButton.disabled = true;
+          quoteSubmitButton.textContent = "Salvando e abrindo WhatsApp...";
+        }
+
+        try {
+          await saveLeadFromSite({
+            name: name,
+            service: service,
+            address: address,
+            description: description
+          });
+
+          showQuoteFeedback("Informações salvas com sucesso. Abrindo o WhatsApp...", "success");
+
+          const url = "https://wa.me/5512996619062?text=" + encodeURIComponent(message);
+          window.open(url, "_blank", "noopener");
+          quoteForm.reset();
+        } catch (error) {
+          console.error("Erro ao salvar lead do site:", error);
+          showQuoteFeedback("Não foi possível salvar seu pedido agora. Verifique a integração do Supabase e tente novamente.", "error");
+        } finally {
+          if (quoteSubmitButton) {
+            quoteSubmitButton.disabled = false;
+            quoteSubmitButton.textContent = "Solicitar orçamento pelo WhatsApp";
+          }
+        }
       });
     }
   </script>

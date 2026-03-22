@@ -722,7 +722,6 @@ function renderAgenda() {
                           </div>
                           <div class="stack-actions schedule-actions">
                             <span class="badge">${item.time}</span>
-                            <a class="text-link" href="${buildCalendarLink(item)}" target="_blank" rel="noreferrer">Google Calendar</a>
                             <button class="ghost-button table-button danger-button" type="button" data-delete-appointment="${item.id}">
                               Excluir
                             </button>
@@ -861,7 +860,6 @@ async function renderSelectedOrder() {
     <div class="detail-actions">
       <a class="action-button" href="${buildWhatsAppLink(order)}" target="_blank" rel="noreferrer">Falar no WhatsApp</a>
       <button class="ghost-button" type="button" id="print-order-button">Imprimir OS</button>
-      <a class="ghost-button" href="${buildCalendarLink(order)}" target="_blank" rel="noreferrer">Enviar ao Google Calendar</a>
       <button class="ghost-button danger-button" type="button" data-delete-order="${order.id}">Excluir OS</button>
     </div>
 
@@ -1305,24 +1303,6 @@ function buildWhatsAppLink(order) {
   ].join("\n");
 
   return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
-}
-
-function buildCalendarLink(item) {
-  const startDate = `${item.date}T${item.time}:00`;
-  const endDate = new Date(new Date(startDate).getTime() + 60 * 60 * 1000);
-  const details = item.notes
-    ? `${item.service}\n\n${item.notes}\n\nEndereco: ${item.address}`
-    : `${item.service}\n\nEndereco: ${item.address}`;
-
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
-    `Fort Lar - ${item.customer}`
-  )}&dates=${formatGoogleDate(startDate)}/${formatGoogleDate(endDate.toISOString())}&details=${encodeURIComponent(
-    details
-  )}&location=${encodeURIComponent(item.address)}`;
-}
-
-function formatGoogleDate(value) {
-  return new Date(value).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
 }
 
 function confirmAction(message) {
