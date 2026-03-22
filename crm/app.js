@@ -933,7 +933,7 @@ async function renderSelectedOrder() {
   });
 
   document.getElementById("print-order-button")?.addEventListener("click", () => {
-    const printed = printOrder(order);
+    const printed = printOrderSafe(order);
 
     if (printed) {
       showFeedback("Ordem de servico enviada para impressao.", "success");
@@ -1690,6 +1690,280 @@ function printOrder(order) {
   }, 300);
 
   return true;
+}
+
+function printOrderSafe(order) {
+  const printWindow = window.open("", "_blank", "width=960,height=720");
+
+  if (!printWindow) {
+    return false;
+  }
+
+  try {
+    const printedAt = new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date());
+
+    const logoUrl = new URL("./assets/logo-fortlar-transparent.png", window.location.href).href;
+    const html = `
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+        <head>
+          <meta charset="UTF-8">
+          <title>Ordem de Servico ${escapeHtml(order.code)}</title>
+          <style>
+            :root {
+              color-scheme: light;
+              --ink: #13304c;
+              --soft: #5f748b;
+              --line: rgba(19, 48, 76, 0.16);
+              --brand: #0f2844;
+              --surface: #f6f9fc;
+            }
+
+            * {
+              box-sizing: border-box;
+            }
+
+            body {
+              margin: 0;
+              padding: 32px;
+              font-family: Arial, Helvetica, sans-serif;
+              color: var(--ink);
+              background: white;
+            }
+
+            .sheet {
+              max-width: 860px;
+              margin: 0 auto;
+              border: 1px solid var(--line);
+              border-radius: 18px;
+              overflow: hidden;
+            }
+
+            .sheet-head {
+              padding: 24px 28px;
+              background: linear-gradient(135deg, var(--brand), #143f68);
+              color: white;
+              display: flex;
+              justify-content: space-between;
+              gap: 24px;
+              align-items: center;
+            }
+
+            .sheet-head img {
+              width: 120px;
+              height: auto;
+              display: block;
+              margin-bottom: 12px;
+            }
+
+            .sheet-head-copy {
+              flex: 1;
+            }
+
+            .sheet-head-copy h1 {
+              margin: 0 0 8px;
+              font-size: 28px;
+            }
+
+            .sheet-head-copy p {
+              margin: 0;
+              color: rgba(255, 255, 255, 0.82);
+              line-height: 1.5;
+            }
+
+            .sheet-code {
+              min-width: 170px;
+              padding: 14px 16px;
+              border-radius: 16px;
+              background: rgba(255, 255, 255, 0.12);
+              border: 1px solid rgba(255, 255, 255, 0.14);
+              text-align: right;
+            }
+
+            .sheet-code strong,
+            .sheet-code span {
+              display: block;
+            }
+
+            .sheet-code span {
+              font-size: 12px;
+              letter-spacing: 0.08em;
+              text-transform: uppercase;
+              color: rgba(255, 255, 255, 0.72);
+            }
+
+            .sheet-body {
+              padding: 28px;
+              display: grid;
+              gap: 18px;
+              background: white;
+            }
+
+            .grid {
+              display: grid;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 14px;
+            }
+
+            .card {
+              padding: 16px 18px;
+              border-radius: 16px;
+              background: var(--surface);
+              border: 1px solid var(--line);
+            }
+
+            .label {
+              margin-bottom: 6px;
+              color: var(--soft);
+              font-size: 12px;
+              font-weight: 700;
+              letter-spacing: 0.08em;
+              text-transform: uppercase;
+            }
+
+            .value {
+              display: block;
+              font-size: 16px;
+              line-height: 1.45;
+              font-weight: 700;
+            }
+
+            .notes {
+              min-height: 120px;
+              white-space: pre-wrap;
+            }
+
+            .sheet-footer {
+              display: grid;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 24px;
+              padding-top: 24px;
+            }
+
+            .signature {
+              padding-top: 42px;
+              border-top: 1px solid var(--line);
+              text-align: center;
+              color: var(--soft);
+              font-size: 13px;
+            }
+
+            @page {
+              size: A4;
+              margin: 16mm;
+            }
+
+            @media print {
+              body {
+                padding: 0;
+              }
+
+              .sheet {
+                border: none;
+                border-radius: 0;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <main class="sheet">
+            <header class="sheet-head">
+              <div class="sheet-head-copy">
+                <img src="${logoUrl}" alt="Fort Lar">
+                <h1>Ordem de Servico</h1>
+                <p>Documento gerado pelo CRM da Fort Lar para atendimento, aprovacao e acompanhamento do servico.</p>
+              </div>
+              <div class="sheet-code">
+                <span>Ordem</span>
+                <strong>${escapeHtml(order.code)}</strong>
+                <span>Gerado em ${escapeHtml(printedAt)}</span>
+              </div>
+            </header>
+
+            <section class="sheet-body">
+              <div class="grid">
+                <div class="card">
+                  <span class="label">Cliente</span>
+                  <strong class="value">${escapeHtml(order.customer)}</strong>
+                </div>
+                <div class="card">
+                  <span class="label">Telefone</span>
+                  <strong class="value">${escapeHtml(order.phone || "Nao informado")}</strong>
+                </div>
+                <div class="card">
+                  <span class="label">Servico</span>
+                  <strong class="value">${escapeHtml(order.service)}</strong>
+                </div>
+                <div class="card">
+                  <span class="label">Agendamento</span>
+                  <strong class="value">${escapeHtml(formatDateTime(order.date, order.time))}</strong>
+                </div>
+                <div class="card">
+                  <span class="label">Status da OS</span>
+                  <strong class="value">${escapeHtml(order.status)}</strong>
+                </div>
+                <div class="card">
+                  <span class="label">Pagamento</span>
+                  <strong class="value">${escapeHtml(order.paymentStatus)} · ${escapeHtml(formatCurrency(order.amount))}</strong>
+                </div>
+              </div>
+
+              <div class="card">
+                <span class="label">Endereco</span>
+                <strong class="value">${escapeHtml(order.address)}</strong>
+              </div>
+
+              <div class="card notes">
+                <span class="label">Descricao / observacoes</span>
+                <strong class="value">${escapeHtml(order.notes || "Sem observacoes cadastradas.")}</strong>
+              </div>
+
+              <div class="sheet-footer">
+                <div class="signature">Assinatura do cliente</div>
+                <div class="signature">Assinatura Fort Lar</div>
+              </div>
+            </section>
+          </main>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    let printTriggered = false;
+
+    const triggerPrint = () => {
+      if (printTriggered || printWindow.closed) {
+        return;
+      }
+
+      printTriggered = true;
+      printWindow.focus();
+      printWindow.print();
+    };
+
+    printWindow.onload = () => {
+      window.setTimeout(triggerPrint, 250);
+    };
+
+    window.setTimeout(triggerPrint, 900);
+    return true;
+  } catch (_error) {
+    try {
+      printWindow.close();
+    } catch (_closeError) {
+    }
+
+    return false;
+  }
 }
 
 function escapeHtml(value) {
