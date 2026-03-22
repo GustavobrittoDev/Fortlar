@@ -56,7 +56,6 @@ const elements = {
   receivablesTable: document.getElementById("receivables-table"),
   financeEntriesTable: document.getElementById("finance-entries-table"),
   financeTimeline: document.getElementById("finance-timeline"),
-  financePlanning: document.getElementById("finance-planning"),
   financialEntryButton: document.getElementById("financial-entry-button"),
   exportFinanceButton: document.getElementById("export-finance-button"),
   cashMovementButtons: document.querySelectorAll("[data-open-cash-movement]"),
@@ -1761,22 +1760,6 @@ function renderFinance() {
         .join("")
     : `<div class="empty-state">Nenhuma movimentacao relevante encontrada.</div>`;
 
-  elements.financePlanning.innerHTML = financeData.planning.length
-    ? financeData.planning
-        .map(
-          (item) => `
-            <div class="finance-planning-item">
-              <div>
-                <strong>${item.title}</strong>
-                <span class="muted">${item.description}</span>
-              </div>
-              <span class="status-pill ${item.tone}">${item.tag}</span>
-            </div>
-          `
-        )
-        .join("")
-    : `<div class="empty-state">Sem recomendacoes financeiras no momento.</div>`;
-
   document.querySelectorAll("[data-payment-id]").forEach((select) => {
     select.addEventListener("change", async (event) => {
       try {
@@ -1891,23 +1874,12 @@ function buildFinanceData() {
   );
 
   const timeline = buildFinanceTimeline(receivables, entries);
-  const planning = buildFinancePlanning({
-    openReceivables,
-    overdueReceivables,
-    expensesPending,
-    operationalBalance,
-    monthBalance,
-    topService: serviceBreakdown[0],
-    financeModuleReady: state.meta.financeModuleReady,
-  });
-
   return {
     receivables,
     entries,
     serviceBreakdown,
     expenseBreakdown,
     timeline,
-    planning,
     summaryCards: [
       {
         label: "Saldo operacional",
@@ -2065,12 +2037,6 @@ function exportFinanceWorkbook() {
     Direcao: item.amountTone === "finance-negative" ? "Saida" : "Entrada",
   }));
 
-  const planningRows = financeData.planning.map((item) => ({
-    Tema: item.title,
-    Descricao: item.description,
-    Prioridade: item.tag,
-  }));
-
   appendSheet(workbook, summaryRows, "Resumo");
   appendSheet(workbook, healthRows, "Indicadores");
   appendSheet(workbook, serviceRows, "Receita por servico");
@@ -2078,7 +2044,6 @@ function exportFinanceWorkbook() {
   appendSheet(workbook, receivablesRows, "Contas a receber");
   appendSheet(workbook, entriesRows, "Lancamentos");
   appendSheet(workbook, timelineRows, "Fluxo");
-  appendSheet(workbook, planningRows, "Planejamento");
 
   const fileDate = todayIso().replace(/-/g, "");
   window.XLSX.writeFile(workbook, `fortlar-financeiro-${fileDate}.xlsx`);
@@ -2188,67 +2153,6 @@ function buildFinanceTimeline(receivables, entries) {
   ];
 
   return items.sort((left, right) => right.sortStamp.localeCompare(left.sortStamp)).slice(0, 8);
-}
-
-function buildFinancePlanning(data) {
-  const items = [];
-
-  if (!data.financeModuleReady) {
-    items.push({
-      title: "Liberar lancamentos avulsos",
-      description: "Rode o upgrade financeiro no Supabase para registrar despesas, impostos e receitas extras.",
-      tag: "Configurar",
-      tone: "status-orcamento-enviado",
-    });
-  }
-
-  if (data.overdueReceivables > 0) {
-    items.push({
-      title: "Cobrar valores vencidos",
-      description: `Existem ${formatCurrency(data.overdueReceivables)} em atraso e isso merece prioridade hoje.`,
-      tag: "Urgente",
-      tone: "status-cancelado",
-    });
-  }
-
-  if (data.expensesPending > 0) {
-    items.push({
-      title: "Reservar caixa para despesas",
-      description: `Separe ${formatCurrency(data.expensesPending)} para compromissos pendentes do operacional.`,
-      tag: "Planejar",
-      tone: "status-orcamento-enviado",
-    });
-  }
-
-  if (data.topService) {
-    items.push({
-      title: "Servico lider de faturamento",
-      description: `${data.topService.label} concentra ${formatCurrency(data.topService.total)} no periodo filtrado.`,
-      tag: "Escalar",
-      tone: "status-pago",
-    });
-  }
-
-  items.push({
-    title: "Resultado do mes",
-    description:
-      data.monthBalance >= 0
-        ? `A operacao do mes esta positiva em ${formatCurrency(data.monthBalance)}.`
-        : `O mes esta negativo em ${formatCurrency(Math.abs(data.monthBalance))}; vale rever custos e cobrancas.`,
-    tag: data.monthBalance >= 0 ? "Saudavel" : "Atencao",
-    tone: data.monthBalance >= 0 ? "status-pago" : "status-cancelado",
-  });
-
-  if (data.openReceivables <= 0) {
-    items.push({
-      title: "Carteira em dia",
-      description: "Nao ha valores em aberto relevantes no momento.",
-      tag: "Estavel",
-      tone: "status-pago",
-    });
-  }
-
-  return items.slice(0, 5);
 }
 
 async function uploadAttachment(orderId, formElement) {
