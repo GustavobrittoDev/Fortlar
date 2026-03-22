@@ -2279,7 +2279,7 @@ function getLeadStageLabel(key) {
 function getSectionTitle(section) {
   const titles = {
     dashboard: "Dashboard operacional",
-    pipeline: "Funil de vendas",
+    pipeline: "Funil",
     clientes: "Base de clientes",
     agenda: "Agenda de atendimentos",
     ordens: "Ordens de servico",
