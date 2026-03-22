@@ -634,6 +634,25 @@ a {
   box-shadow: 0 10px 24px rgba(12, 37, 64, 0.08);
 }
 
+.panel-action-button {
+  min-height: 42px;
+  padding: 0 0.9rem;
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+
+.panel-action-button.is-income {
+  color: #17643f;
+  background: rgba(31, 164, 99, 0.08);
+  border-color: rgba(31, 164, 99, 0.18);
+}
+
+.panel-action-button.is-expense {
+  color: #9b3737;
+  background: rgba(239, 91, 91, 0.08);
+  border-color: rgba(239, 91, 91, 0.18);
+}
+
 .text-link {
   color: var(--primary);
   font-weight: 800;
@@ -694,9 +713,17 @@ a {
 }
 
 .section-head > div,
-.panel-head > div {
+.panel-head > :not(.panel-actions) {
   display: grid;
   gap: 0.18rem;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.6rem;
 }
 
 .panel-head.compact {
@@ -1654,6 +1681,14 @@ a {
   .detail-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .panel-actions {
+    justify-content: stretch;
+  }
+
+  .panel-action-button {
+    width: 100%;
   }
 
   .finance-health-row,

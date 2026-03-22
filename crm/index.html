@@ -362,6 +362,14 @@
                 <span class="panel-kicker">Fluxo</span>
                 <h3>Movimentacao recente</h3>
               </div>
+              <div class="panel-actions">
+                <button class="ghost-button panel-action-button is-income" type="button" data-open-cash-movement="entrada">
+                  Entrada no caixa
+                </button>
+                <button class="ghost-button panel-action-button is-expense" type="button" data-open-cash-movement="saida">
+                  Saida do caixa
+                </button>
+              </div>
             </div>
             <div id="finance-timeline" class="stack-list"></div>
           </article>
@@ -625,6 +633,8 @@
             <option value="Impostos e taxas">Impostos e taxas</option>
             <option value="Comissao">Comissao</option>
             <option value="Adiantamento">Adiantamento</option>
+            <option value="Entrada de caixa">Entrada de caixa</option>
+            <option value="Saida de caixa">Saida de caixa</option>
             <option value="Receita extra">Receita extra</option>
             <option value="Outro">Outro</option>
           </select>
@@ -668,6 +678,74 @@
       <div class="modal-actions">
         <button class="action-button secondary" type="button" data-close-modal>Cancelar</button>
         <button class="action-button" id="financial-entry-submit-button" type="submit">Salvar lancamento</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="cash-movement-modal">
+    <form class="modal-card" method="dialog" id="cash-movement-form">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">Fluxo de caixa</span>
+          <h3 id="cash-movement-modal-title">Registrar movimentacao de caixa</h3>
+        </div>
+        <button class="icon-button" type="button" data-close-modal aria-label="Fechar modal">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="form-grid">
+        <label class="field">
+          <span>Movimentacao</span>
+          <select name="movementType" required>
+            <option value="entrada">Entrada no caixa</option>
+            <option value="saida">Saida do caixa</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Data</span>
+          <input name="entryDate" type="date" required>
+        </label>
+        <label class="field">
+          <span>Valor</span>
+          <input name="amount" type="number" min="0" step="0.01" required>
+        </label>
+        <label class="field">
+          <span>Forma de entrada/saida</span>
+          <select name="paymentMethod" required>
+            <option value="Pix">Pix</option>
+            <option value="Dinheiro">Dinheiro</option>
+            <option value="Cartao">Cartao</option>
+            <option value="Boleto">Boleto</option>
+            <option value="Transferencia">Transferencia</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </label>
+        <label class="field field-full">
+          <span>Descricao</span>
+          <input
+            name="description"
+            type="text"
+            placeholder="Ex: reforco de caixa, retirada para compra, entrada de capital"
+            required
+          >
+        </label>
+        <label class="field field-full">
+          <span>Referencia</span>
+          <input
+            name="reference"
+            type="text"
+            placeholder="Ex: capital proprio, retirada operacional, ajuste de caixa"
+          >
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button class="action-button secondary" type="button" data-close-modal>Cancelar</button>
+        <button class="action-button" id="cash-movement-submit-button" type="submit">Salvar movimentacao</button>
       </div>
     </form>
   </dialog>

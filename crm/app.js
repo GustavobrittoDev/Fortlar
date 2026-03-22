@@ -58,6 +58,7 @@ const elements = {
   financeTimeline: document.getElementById("finance-timeline"),
   financePlanning: document.getElementById("finance-planning"),
   financialEntryButton: document.getElementById("financial-entry-button"),
+  cashMovementButtons: document.querySelectorAll("[data-open-cash-movement]"),
   search: document.getElementById("global-search"),
   sidebar: document.getElementById("sidebar"),
   sidebarToggle: document.getElementById("sidebar-toggle"),
@@ -69,25 +70,30 @@ const elements = {
   appointmentModal: document.getElementById("appointment-modal"),
   orderModal: document.getElementById("order-modal"),
   financialEntryModal: document.getElementById("financial-entry-modal"),
+  cashMovementModal: document.getElementById("cash-movement-modal"),
   leadForm: document.getElementById("lead-form"),
   appointmentForm: document.getElementById("appointment-form"),
   orderForm: document.getElementById("order-form"),
   financialEntryForm: document.getElementById("financial-entry-form"),
+  cashMovementForm: document.getElementById("cash-movement-form"),
   orderAmountInput: document.querySelector('#order-form [name="amount"]'),
   orderPaymentStatusInput: document.querySelector('#order-form [name="paymentStatus"]'),
   orderAmountPaidInput: document.querySelector('#order-form [name="amountPaid"]'),
   orderAmountDueInput: document.querySelector('#order-form [name="amountDue"]'),
   appointmentCustomerInput: document.querySelector('#appointment-form [name="customer"]'),
   orderCustomerInput: document.querySelector('#order-form [name="customer"]'),
+  cashMovementTypeInput: document.querySelector('#cash-movement-form [name="movementType"]'),
   customerOptions: document.getElementById("customer-options"),
   leadModalTitle: document.getElementById("lead-modal-title"),
   appointmentModalTitle: document.getElementById("appointment-modal-title"),
   orderModalTitle: document.getElementById("order-modal-title"),
   financialEntryModalTitle: document.getElementById("financial-entry-modal-title"),
+  cashMovementModalTitle: document.getElementById("cash-movement-modal-title"),
   leadSubmitButton: document.getElementById("lead-submit-button"),
   appointmentSubmitButton: document.getElementById("appointment-submit-button"),
   orderSubmitButton: document.getElementById("order-submit-button"),
   financialEntrySubmitButton: document.getElementById("financial-entry-submit-button"),
+  cashMovementSubmitButton: document.getElementById("cash-movement-submit-button"),
   logoutButton: document.getElementById("logout-button"),
 };
 
@@ -155,6 +161,7 @@ function setDefaultFormDates() {
   elements.appointmentForm?.querySelector('[name="date"]')?.setAttribute("value", today);
   elements.orderForm?.querySelector('[name="date"]')?.setAttribute("value", today);
   elements.financialEntryForm?.querySelector('[name="entryDate"]')?.setAttribute("value", today);
+  elements.cashMovementForm?.querySelector('[name="entryDate"]')?.setAttribute("value", today);
 }
 
 function prepareModalForCreate(modalId) {
@@ -172,6 +179,10 @@ function prepareModalForCreate(modalId) {
 
   if (modalId === "financial-entry-modal") {
     resetFinancialEntryFormState();
+  }
+
+  if (modalId === "cash-movement-modal") {
+    resetCashMovementFormState();
   }
 }
 
@@ -221,6 +232,20 @@ function resetFinancialEntryFormState() {
   }
   if (elements.financialEntrySubmitButton) {
     elements.financialEntrySubmitButton.textContent = "Salvar lancamento";
+  }
+}
+
+function resetCashMovementFormState() {
+  elements.cashMovementForm?.reset();
+  setDefaultFormDates();
+  if (elements.cashMovementTypeInput) {
+    elements.cashMovementTypeInput.value = "entrada";
+  }
+  if (elements.cashMovementModalTitle) {
+    elements.cashMovementModalTitle.textContent = "Registrar entrada no caixa";
+  }
+  if (elements.cashMovementSubmitButton) {
+    elements.cashMovementSubmitButton.textContent = "Salvar movimentacao";
   }
 }
 
@@ -340,6 +365,26 @@ function openFinancialEntryEditor(entryId) {
   }
 
   elements.financialEntryModal?.showModal();
+}
+
+function openCashMovementModal(movementType = "entrada") {
+  if (!state.meta.financeModuleReady) {
+    showFeedback("Lancamentos indisponiveis no momento.", "error");
+    return;
+  }
+
+  resetCashMovementFormState();
+  const config = getCashMovementConfig(movementType);
+
+  setFormValue(elements.cashMovementForm, "movementType", config.key);
+  if (elements.cashMovementModalTitle) {
+    elements.cashMovementModalTitle.textContent = config.modalTitle;
+  }
+  if (elements.cashMovementSubmitButton) {
+    elements.cashMovementSubmitButton.textContent = config.submitLabel;
+  }
+
+  elements.cashMovementModal?.showModal();
 }
 
 function createSupabaseClient() {
@@ -506,6 +551,7 @@ function bindModals() {
   elements.appointmentModal?.addEventListener("close", resetAppointmentFormState);
   elements.orderModal?.addEventListener("close", resetOrderFormState);
   elements.financialEntryModal?.addEventListener("close", resetFinancialEntryFormState);
+  elements.cashMovementModal?.addEventListener("close", resetCashMovementFormState);
 }
 
 function bindForms() {
@@ -672,6 +718,51 @@ function bindForms() {
       showFeedback(translateError(error.message), "error");
     }
   });
+
+  elements.cashMovementForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    clearFeedback();
+
+    if (!state.meta.financeModuleReady) {
+      showFeedback("Lancamentos indisponiveis no momento.", "error");
+      return;
+    }
+
+    try {
+      const form = new FormData(elements.cashMovementForm);
+      const config = getCashMovementConfig(form.get("movementType"));
+      const amount = Number(form.get("amount") || 0);
+
+      if (amount <= 0) {
+        throw new Error("Informe um valor maior que zero para registrar a movimentacao.");
+      }
+
+      const payload = {
+        entry_type: config.entryType,
+        category: config.category,
+        description: form.get("description"),
+        entry_date: form.get("entryDate"),
+        amount,
+        status: "Pago",
+        payment_method: form.get("paymentMethod"),
+        reference: form.get("reference") || "Movimentacao direta de caixa",
+      };
+
+      const { error } = await supabaseClient.from("financial_entries").insert(payload);
+      throwIfError(error);
+
+      await insertActivity(
+        "Movimentacao de caixa registrada",
+        `${config.activityLabel} de ${formatCurrency(amount)} registrada no financeiro.`
+      );
+      elements.cashMovementModal?.close();
+      await bootstrap();
+      setActiveSection("financeiro");
+      showFeedback(`${config.feedbackLabel} salva com sucesso.`, "success");
+    } catch (error) {
+      showFeedback(translateError(error.message), "error");
+    }
+  });
 }
 
 function bindCustomerAutofill() {
@@ -781,6 +872,14 @@ function bindSidebar() {
 
 function bindActionDelegation() {
   document.addEventListener("click", async (event) => {
+    const cashMovementButton = event.target.closest("[data-open-cash-movement]");
+
+    if (cashMovementButton) {
+      event.preventDefault();
+      openCashMovementModal(cashMovementButton.dataset.openCashMovement);
+      return;
+    }
+
     const toggleLeadButton = event.target.closest("[data-toggle-lead]");
 
     if (toggleLeadButton) {
@@ -1488,6 +1587,10 @@ function renderFinance() {
     elements.financialEntryButton.textContent = state.meta.financeModuleReady ? "Novo lancamento" : "Ativar lancamentos";
   }
 
+  elements.cashMovementButtons?.forEach((button) => {
+    button.disabled = !state.meta.financeModuleReady;
+  });
+
   elements.financeAlert.textContent = "";
   elements.financeAlert.classList.add("is-hidden");
 
@@ -1906,7 +2009,7 @@ function buildBreakdownItems(items, labelKey, amountKey) {
 function buildFinanceTimeline(receivables, entries) {
   const items = [
     ...receivables.map((item) => ({
-      sortDate: item.date,
+      sortStamp: `${item.date}T${item.time || "23:59"}`,
       title: `Recebimento ${item.code}`,
       description: `${item.customer} - ${item.service}`,
       amount: Number(item.remainingAmount || 0),
@@ -1914,18 +2017,22 @@ function buildFinanceTimeline(receivables, entries) {
       when: formatDate(item.date),
     })),
     ...entries
-      .filter((entry) => entry.status !== "Pago")
+      .filter((entry) => entry.status !== "Pago" || isCashMovementEntry(entry))
       .map((entry) => ({
-        sortDate: entry.entryDate,
-        title: `${entry.entryType} - ${entry.category}`,
-        description: entry.description,
+        sortStamp: `${entry.entryDate}T${String(entry.createdAt || "").slice(11, 19) || "12:00:00"}`,
+        title: isCashMovementEntry(entry)
+          ? entry.entryType === "Receita"
+            ? "Entrada no caixa"
+            : "Saida do caixa"
+          : `${entry.entryType} - ${entry.category}`,
+        description: buildFinanceTimelineDescription(entry),
         amount: Number(entry.amount || 0),
         amountTone: entry.entryType === "Despesa" ? "finance-negative" : "finance-positive",
         when: formatDate(entry.entryDate),
       })),
   ];
 
-  return items.sort((left, right) => left.sortDate.localeCompare(right.sortDate)).slice(0, 6);
+  return items.sort((left, right) => right.sortStamp.localeCompare(left.sortStamp)).slice(0, 8);
 }
 
 function buildFinancePlanning(data) {
@@ -2329,6 +2436,47 @@ function mapFinancialEntry(row) {
     reference: row.reference || "",
     createdAt: row.created_at,
   };
+}
+
+function getCashMovementConfig(movementType) {
+  if (movementType === "saida") {
+    return {
+      key: "saida",
+      entryType: "Despesa",
+      category: "Saida de caixa",
+      modalTitle: "Registrar saida do caixa",
+      submitLabel: "Salvar saida",
+      activityLabel: "Saida de caixa",
+      feedbackLabel: "Saida do caixa",
+    };
+  }
+
+  return {
+    key: "entrada",
+    entryType: "Receita",
+    category: "Entrada de caixa",
+    modalTitle: "Registrar entrada no caixa",
+    submitLabel: "Salvar entrada",
+    activityLabel: "Entrada de caixa",
+    feedbackLabel: "Entrada no caixa",
+  };
+}
+
+function isCashMovementEntry(entry) {
+  const category = normalizeSearchTerm(entry?.category);
+  return category === "entrada de caixa" || category === "saida de caixa";
+}
+
+function buildFinanceTimelineDescription(entry) {
+  const detailParts = [entry.description];
+
+  if (isCashMovementEntry(entry) && entry.paymentMethod) {
+    detailParts.push(entry.paymentMethod);
+  } else if (entry.reference) {
+    detailParts.push(entry.reference);
+  }
+
+  return detailParts.filter(Boolean).join(" - ");
 }
 
 function throwIfError(error) {
