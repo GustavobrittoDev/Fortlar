@@ -652,7 +652,7 @@ function bindPipelineInteractions() {
       throwIfError(error);
       await insertActivity("Lead atualizado", `Lead movido para ${zone.dataset.dropzone}.`);
       await bootstrap();
-      showFeedback("Pipeline atualizado com sucesso.", "success");
+      showFeedback("Funil atualizado com sucesso.", "success");
     });
   });
 
@@ -1283,7 +1283,7 @@ function getLeadStageLabel(key) {
 function getSectionTitle(section) {
   const titles = {
     dashboard: "Dashboard operacional",
-    pipeline: "Pipeline de vendas",
+    pipeline: "Funil de vendas",
     clientes: "Base de clientes",
     agenda: "Agenda de atendimentos",
     ordens: "Ordens de servico",
