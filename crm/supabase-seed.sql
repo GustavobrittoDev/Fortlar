@@ -23,3 +23,10 @@ values
   ('Lead recebido pelo site', 'Mariana Souza solicitou avaliacao hidraulica.', 'Hoje, 09:10'),
   ('Orcamento enviado', 'Rogerio Lima recebeu proposta de montagem.', 'Ontem, 16:45'),
   ('OS em andamento', 'Patricia Alves esta com eletrica em execucao.', 'Hoje, 08:20');
+
+insert into public.financial_entries (entry_type, category, description, entry_date, amount, status, payment_method, reference)
+values
+  ('Despesa', 'Material', 'Compra de fita LED e conectores para instalacao.', '2026-03-21', 280, 'Pago', 'Pix', 'Material usado em cozinha planejada'),
+  ('Despesa', 'Deslocamento', 'Combustivel e pedagio para atendimento externo.', '2026-03-22', 95, 'Pendente', 'Cartao', 'Rota Jacarei e Sao Jose'),
+  ('Receita', 'Receita extra', 'Instalacao avulsa de spot sem OS formal.', '2026-03-22', 220, 'Pago', 'Pix', 'Cliente recorrente'),
+  ('Despesa', 'Marketing', 'Impulsionamento local no Instagram.', '2026-03-23', 150, 'Pendente', 'Cartao', 'Campanha para Jacarei e regiao');

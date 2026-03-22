@@ -272,32 +272,50 @@
         <div class="section-head">
           <div>
             <span class="eyebrow">Financeiro</span>
-            <h2>Receitas, pendencias e metas</h2>
+            <h2>Contabilidade, caixa e desempenho operacional</h2>
           </div>
+          <button class="ghost-button" id="financial-entry-button" data-open-modal="financial-entry-modal">Novo lancamento</button>
+        </div>
+
+        <div class="finance-alert is-hidden" id="finance-alert"></div>
+
+        <div class="finance-summary-grid" id="finance-cards"></div>
+
+        <div class="finance-dashboard-grid">
+          <article class="panel-card">
+            <div class="panel-head">
+              <div>
+                <span class="panel-kicker">Visao executiva</span>
+                <h3>Saude financeira</h3>
+              </div>
+            </div>
+            <div id="finance-health" class="stack-list"></div>
+          </article>
+
+          <article class="panel-card">
+            <div class="panel-head">
+              <div>
+                <span class="panel-kicker">Analise</span>
+                <h3>Composicao por categoria</h3>
+              </div>
+            </div>
+            <div id="finance-breakdown" class="stack-list"></div>
+          </article>
         </div>
 
         <div class="finance-grid">
           <article class="panel-card">
             <div class="panel-head">
               <div>
-                <span class="panel-kicker">Resumo</span>
-                <h3>Indicadores financeiros</h3>
-              </div>
-            </div>
-            <div id="finance-cards" class="stack-list"></div>
-          </article>
-
-          <article class="panel-card">
-            <div class="panel-head">
-              <div>
                 <span class="panel-kicker">Recebiveis</span>
-                <h3>Pagamentos em aberto</h3>
+                <h3>Contas a receber</h3>
               </div>
             </div>
             <div class="table-wrap">
               <table class="data-table">
                 <thead>
                   <tr>
+                    <th>OS</th>
                     <th>Cliente</th>
                     <th>Servico</th>
                     <th>Vencimento</th>
@@ -309,6 +327,53 @@
               </table>
             </div>
           </article>
+
+          <article class="panel-card">
+            <div class="panel-head">
+              <div>
+                <span class="panel-kicker">Lancamentos</span>
+                <h3>Despesas e receitas avulsas</h3>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Tipo</th>
+                    <th>Categoria</th>
+                    <th>Descricao</th>
+                    <th>Data</th>
+                    <th>Valor</th>
+                    <th>Situacao</th>
+                    <th>Acoes</th>
+                  </tr>
+                </thead>
+                <tbody id="finance-entries-table"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+
+        <div class="finance-dashboard-grid finance-secondary-grid">
+          <article class="panel-card">
+            <div class="panel-head">
+              <div>
+                <span class="panel-kicker">Fluxo</span>
+                <h3>Movimentacao recente</h3>
+              </div>
+            </div>
+            <div id="finance-timeline" class="stack-list"></div>
+          </article>
+
+          <article class="panel-card">
+            <div class="panel-head">
+              <div>
+                <span class="panel-kicker">Planejamento</span>
+                <h3>Agenda financeira</h3>
+              </div>
+            </div>
+            <div id="finance-planning" class="stack-list"></div>
+          </article>
         </div>
       </section>
     </main>
@@ -316,10 +381,11 @@
 
   <dialog class="modal" id="lead-modal">
     <form class="modal-card" method="dialog" id="lead-form">
+      <input type="hidden" name="leadId">
       <div class="modal-head">
         <div>
           <span class="eyebrow">Novo lead</span>
-          <h3>Cadastrar novo contato</h3>
+          <h3 id="lead-modal-title">Cadastrar novo contato</h3>
         </div>
         <button class="icon-button" type="button" data-close-modal aria-label="Fechar modal">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -378,17 +444,18 @@
 
       <div class="modal-actions">
         <button class="action-button secondary" type="button" data-close-modal>Cancelar</button>
-        <button class="action-button" type="submit">Salvar lead</button>
+        <button class="action-button" id="lead-submit-button" type="submit">Salvar lead</button>
       </div>
     </form>
   </dialog>
 
   <dialog class="modal" id="appointment-modal">
     <form class="modal-card" method="dialog" id="appointment-form">
+      <input type="hidden" name="appointmentId">
       <div class="modal-head">
         <div>
           <span class="eyebrow">Agenda</span>
-          <h3>Agendar visita</h3>
+          <h3 id="appointment-modal-title">Agendar visita</h3>
         </div>
         <button class="icon-button" type="button" data-close-modal aria-label="Fechar modal">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -431,17 +498,18 @@
 
       <div class="modal-actions">
         <button class="action-button secondary" type="button" data-close-modal>Cancelar</button>
-        <button class="action-button" type="submit">Salvar visita</button>
+        <button class="action-button" id="appointment-submit-button" type="submit">Salvar visita</button>
       </div>
     </form>
   </dialog>
 
   <dialog class="modal" id="order-modal">
     <form class="modal-card" method="dialog" id="order-form">
+      <input type="hidden" name="orderId">
       <div class="modal-head">
         <div>
           <span class="eyebrow">Execucao</span>
-          <h3>Nova ordem de servico</h3>
+          <h3 id="order-modal-title">Nova ordem de servico</h3>
         </div>
         <button class="icon-button" type="button" data-close-modal aria-label="Fechar modal">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -505,7 +573,92 @@
 
       <div class="modal-actions">
         <button class="action-button secondary" type="button" data-close-modal>Cancelar</button>
-        <button class="action-button" type="submit">Salvar OS</button>
+        <button class="action-button" id="order-submit-button" type="submit">Salvar OS</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="financial-entry-modal">
+    <form class="modal-card" method="dialog" id="financial-entry-form">
+      <input type="hidden" name="financialEntryId">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">Financeiro</span>
+          <h3 id="financial-entry-modal-title">Novo lancamento contabil</h3>
+        </div>
+        <button class="icon-button" type="button" data-close-modal aria-label="Fechar modal">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="form-grid">
+        <label class="field">
+          <span>Tipo</span>
+          <select name="entryType" required>
+            <option value="Despesa">Despesa</option>
+            <option value="Receita">Receita</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Categoria</span>
+          <select name="category" required>
+            <option value="Material">Material</option>
+            <option value="Mao de obra">Mao de obra</option>
+            <option value="Deslocamento">Deslocamento</option>
+            <option value="Ferramentas">Ferramentas</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Terceiros">Terceiros</option>
+            <option value="Equipamentos">Equipamentos</option>
+            <option value="Assinaturas">Assinaturas</option>
+            <option value="Impostos e taxas">Impostos e taxas</option>
+            <option value="Comissao">Comissao</option>
+            <option value="Adiantamento">Adiantamento</option>
+            <option value="Receita extra">Receita extra</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </label>
+        <label class="field field-full">
+          <span>Descricao</span>
+          <input name="description" type="text" required>
+        </label>
+        <label class="field">
+          <span>Data</span>
+          <input name="entryDate" type="date" required>
+        </label>
+        <label class="field">
+          <span>Valor</span>
+          <input name="amount" type="number" min="0" step="0.01" required>
+        </label>
+        <label class="field">
+          <span>Situacao</span>
+          <select name="status" required>
+            <option value="Pendente">Pendente</option>
+            <option value="Pago">Pago</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Forma de pagamento</span>
+          <select name="paymentMethod" required>
+            <option value="Pix">Pix</option>
+            <option value="Dinheiro">Dinheiro</option>
+            <option value="Cartao">Cartao</option>
+            <option value="Boleto">Boleto</option>
+            <option value="Transferencia">Transferencia</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </label>
+        <label class="field field-full">
+          <span>Referencia</span>
+          <input name="reference" type="text" placeholder="Ex: compra de material, pagamento de parceiro, receita avulsa">
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button class="action-button secondary" type="button" data-close-modal>Cancelar</button>
+        <button class="action-button" id="financial-entry-submit-button" type="submit">Salvar lancamento</button>
       </div>
     </form>
   </dialog>

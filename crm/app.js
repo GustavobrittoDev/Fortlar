@@ -8,6 +8,7 @@ const leadStages = [
 
 const orderStatuses = ["Agendado", "Em andamento", "Concluido", "Cancelado"];
 const paymentStatuses = ["Pendente", "Parcial", "Pago"];
+const financialEntryStatuses = ["Pendente", "Pago"];
 
 let supabaseClient = null;
 let currentUser = null;
@@ -18,12 +19,14 @@ let state = {
   meta: {
     fortlarPhone: "5512996619062",
     storageBucket: "crm-anexos",
+    financeModuleReady: true,
   },
   stats: {},
   leads: [],
   appointments: [],
   orders: [],
   activities: [],
+  financialEntries: [],
 };
 
 const elements = {
@@ -46,7 +49,14 @@ const elements = {
   orderDetailTitle: document.getElementById("order-detail-title"),
   orderDetailContent: document.getElementById("order-detail-content"),
   financeCards: document.getElementById("finance-cards"),
+  financeAlert: document.getElementById("finance-alert"),
+  financeHealth: document.getElementById("finance-health"),
+  financeBreakdown: document.getElementById("finance-breakdown"),
   receivablesTable: document.getElementById("receivables-table"),
+  financeEntriesTable: document.getElementById("finance-entries-table"),
+  financeTimeline: document.getElementById("finance-timeline"),
+  financePlanning: document.getElementById("finance-planning"),
+  financialEntryButton: document.getElementById("financial-entry-button"),
   search: document.getElementById("global-search"),
   sidebar: document.getElementById("sidebar"),
   sidebarToggle: document.getElementById("sidebar-toggle"),
@@ -57,9 +67,19 @@ const elements = {
   leadModal: document.getElementById("lead-modal"),
   appointmentModal: document.getElementById("appointment-modal"),
   orderModal: document.getElementById("order-modal"),
+  financialEntryModal: document.getElementById("financial-entry-modal"),
   leadForm: document.getElementById("lead-form"),
   appointmentForm: document.getElementById("appointment-form"),
   orderForm: document.getElementById("order-form"),
+  financialEntryForm: document.getElementById("financial-entry-form"),
+  leadModalTitle: document.getElementById("lead-modal-title"),
+  appointmentModalTitle: document.getElementById("appointment-modal-title"),
+  orderModalTitle: document.getElementById("order-modal-title"),
+  financialEntryModalTitle: document.getElementById("financial-entry-modal-title"),
+  leadSubmitButton: document.getElementById("lead-submit-button"),
+  appointmentSubmitButton: document.getElementById("appointment-submit-button"),
+  orderSubmitButton: document.getElementById("order-submit-button"),
+  financialEntrySubmitButton: document.getElementById("financial-entry-submit-button"),
   logoutButton: document.getElementById("logout-button"),
 };
 
@@ -71,6 +91,8 @@ async function initialize() {
     day: "2-digit",
     month: "long",
   }).format(new Date());
+
+  setDefaultFormDates();
 
   bindNavigation();
   bindModals();
@@ -115,6 +137,195 @@ async function initialize() {
     elements.loginError.textContent = translateError(error.message);
     elements.loginError.hidden = false;
   }
+}
+
+function setDefaultFormDates() {
+  const today = todayIso();
+
+  elements.appointmentForm?.querySelector('[name="date"]')?.setAttribute("value", today);
+  elements.orderForm?.querySelector('[name="date"]')?.setAttribute("value", today);
+  elements.financialEntryForm?.querySelector('[name="entryDate"]')?.setAttribute("value", today);
+}
+
+function prepareModalForCreate(modalId) {
+  if (modalId === "lead-modal") {
+    resetLeadFormState();
+  }
+
+  if (modalId === "appointment-modal") {
+    resetAppointmentFormState();
+  }
+
+  if (modalId === "order-modal") {
+    resetOrderFormState();
+  }
+
+  if (modalId === "financial-entry-modal") {
+    resetFinancialEntryFormState();
+  }
+}
+
+function resetLeadFormState() {
+  elements.leadForm?.reset();
+  setFormValue(elements.leadForm, "leadId", "");
+  if (elements.leadModalTitle) {
+    elements.leadModalTitle.textContent = "Cadastrar novo contato";
+  }
+  if (elements.leadSubmitButton) {
+    elements.leadSubmitButton.textContent = "Salvar lead";
+  }
+}
+
+function resetAppointmentFormState() {
+  elements.appointmentForm?.reset();
+  setFormValue(elements.appointmentForm, "appointmentId", "");
+  setDefaultFormDates();
+  if (elements.appointmentModalTitle) {
+    elements.appointmentModalTitle.textContent = "Agendar visita";
+  }
+  if (elements.appointmentSubmitButton) {
+    elements.appointmentSubmitButton.textContent = "Salvar visita";
+  }
+}
+
+function resetOrderFormState() {
+  elements.orderForm?.reset();
+  setFormValue(elements.orderForm, "orderId", "");
+  setDefaultFormDates();
+  if (elements.orderModalTitle) {
+    elements.orderModalTitle.textContent = "Nova ordem de servico";
+  }
+  if (elements.orderSubmitButton) {
+    elements.orderSubmitButton.textContent = "Salvar OS";
+  }
+}
+
+function resetFinancialEntryFormState() {
+  elements.financialEntryForm?.reset();
+  setFormValue(elements.financialEntryForm, "financialEntryId", "");
+  setDefaultFormDates();
+  if (elements.financialEntryModalTitle) {
+    elements.financialEntryModalTitle.textContent = "Novo lancamento contabil";
+  }
+  if (elements.financialEntrySubmitButton) {
+    elements.financialEntrySubmitButton.textContent = "Salvar lancamento";
+  }
+}
+
+function setFormValue(form, name, value) {
+  const field = form?.querySelector(`[name="${name}"]`);
+
+  if (field) {
+    field.value = value ?? "";
+  }
+}
+
+function openLeadEditor(leadId) {
+  const lead = state.leads.find((item) => item.id === leadId);
+
+  if (!lead) {
+    return;
+  }
+
+  setFormValue(elements.leadForm, "leadId", lead.id);
+  setFormValue(elements.leadForm, "name", lead.name);
+  setFormValue(elements.leadForm, "phone", lead.phone);
+  setFormValue(elements.leadForm, "service", lead.service);
+  setFormValue(elements.leadForm, "address", lead.address);
+  setFormValue(elements.leadForm, "source", lead.source);
+  setFormValue(elements.leadForm, "priority", lead.priority);
+  setFormValue(elements.leadForm, "notes", lead.notes);
+
+  if (elements.leadModalTitle) {
+    elements.leadModalTitle.textContent = "Editar contato";
+  }
+  if (elements.leadSubmitButton) {
+    elements.leadSubmitButton.textContent = "Salvar alteracoes";
+  }
+
+  elements.leadModal?.showModal();
+}
+
+function openAppointmentEditor(appointmentId) {
+  const appointment = state.appointments.find((item) => item.id === appointmentId);
+
+  if (!appointment) {
+    return;
+  }
+
+  setFormValue(elements.appointmentForm, "appointmentId", appointment.id);
+  setFormValue(elements.appointmentForm, "customer", appointment.customer);
+  setFormValue(elements.appointmentForm, "phone", appointment.phone);
+  setFormValue(elements.appointmentForm, "service", appointment.service);
+  setFormValue(elements.appointmentForm, "date", appointment.date);
+  setFormValue(elements.appointmentForm, "time", appointment.time);
+  setFormValue(elements.appointmentForm, "address", appointment.address);
+  setFormValue(elements.appointmentForm, "notes", appointment.notes);
+
+  if (elements.appointmentModalTitle) {
+    elements.appointmentModalTitle.textContent = "Editar visita";
+  }
+  if (elements.appointmentSubmitButton) {
+    elements.appointmentSubmitButton.textContent = "Salvar alteracoes";
+  }
+
+  elements.appointmentModal?.showModal();
+}
+
+function openOrderEditor(orderId) {
+  const order = state.orders.find((item) => item.id === orderId);
+
+  if (!order) {
+    return;
+  }
+
+  setFormValue(elements.orderForm, "orderId", order.id);
+  setFormValue(elements.orderForm, "customer", order.customer);
+  setFormValue(elements.orderForm, "phone", order.phone);
+  setFormValue(elements.orderForm, "service", order.service);
+  setFormValue(elements.orderForm, "date", order.date);
+  setFormValue(elements.orderForm, "time", order.time);
+  setFormValue(elements.orderForm, "amount", order.amount);
+  setFormValue(elements.orderForm, "status", order.status);
+  setFormValue(elements.orderForm, "paymentStatus", order.paymentStatus);
+  setFormValue(elements.orderForm, "address", order.address);
+  setFormValue(elements.orderForm, "notes", order.notes);
+
+  if (elements.orderModalTitle) {
+    elements.orderModalTitle.textContent = `Editar ${order.code}`;
+  }
+  if (elements.orderSubmitButton) {
+    elements.orderSubmitButton.textContent = "Salvar alteracoes";
+  }
+
+  elements.orderModal?.showModal();
+}
+
+function openFinancialEntryEditor(entryId) {
+  const entry = state.financialEntries.find((item) => item.id === entryId);
+
+  if (!entry) {
+    return;
+  }
+
+  setFormValue(elements.financialEntryForm, "financialEntryId", entry.id);
+  setFormValue(elements.financialEntryForm, "entryType", entry.entryType);
+  setFormValue(elements.financialEntryForm, "category", entry.category);
+  setFormValue(elements.financialEntryForm, "description", entry.description);
+  setFormValue(elements.financialEntryForm, "entryDate", entry.entryDate);
+  setFormValue(elements.financialEntryForm, "amount", entry.amount);
+  setFormValue(elements.financialEntryForm, "status", entry.status);
+  setFormValue(elements.financialEntryForm, "paymentMethod", entry.paymentMethod);
+  setFormValue(elements.financialEntryForm, "reference", entry.reference);
+
+  if (elements.financialEntryModalTitle) {
+    elements.financialEntryModalTitle.textContent = "Editar lancamento contabil";
+  }
+  if (elements.financialEntrySubmitButton) {
+    elements.financialEntrySubmitButton.textContent = "Salvar alteracoes";
+  }
+
+  elements.financialEntryModal?.showModal();
 }
 
 function createSupabaseClient() {
@@ -180,11 +391,13 @@ async function bootstrap() {
   currentUser.profile = profileResult.data || {};
 
   const attachmentsByOrder = await fetchAttachmentCounts();
+  const financialEntries = await loadFinancialEntries();
 
   state.leads = (leadsResult.data || []).map(mapLead);
   state.appointments = (appointmentsResult.data || []).map(mapAppointment);
   state.orders = (ordersResult.data || []).map((row) => mapOrder(row, attachmentsByOrder));
   state.activities = (activitiesResult.data || []).map(mapActivity);
+  state.financialEntries = financialEntries;
   state.stats = buildStats();
 
   if (!selectedOrderId && state.orders.length) {
@@ -193,6 +406,26 @@ async function bootstrap() {
 
   renderAll();
   await renderSelectedOrder();
+}
+
+async function loadFinancialEntries() {
+  const { data, error } = await supabaseClient
+    .from("financial_entries")
+    .select("*")
+    .order("entry_date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    if (isMissingFinancialTableError(error)) {
+      state.meta.financeModuleReady = false;
+      return [];
+    }
+
+    throw new Error(error.message);
+  }
+
+  state.meta.financeModuleReady = true;
+  return (data || []).map(mapFinancialEntry);
 }
 
 async function fetchAttachmentCounts() {
@@ -206,14 +439,26 @@ async function fetchAttachmentCounts() {
 }
 
 function buildStats() {
+  const paidOrders = state.orders
+    .filter((order) => order.paymentStatus === "Pago")
+    .reduce((sum, order) => sum + Number(order.amount || 0), 0);
+  const paidExtraRevenue = state.financialEntries
+    .filter((entry) => entry.entryType === "Receita" && entry.status === "Pago")
+    .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+
   return {
     openLeads: state.leads.filter((lead) => !["fechado", "arquivado"].includes(lead.status)).length,
     wonLeads: state.leads.filter((lead) => lead.status === "fechado").length,
     activeOrders: state.orders.filter((order) => ["Agendado", "Em andamento"].includes(order.status)).length,
-    pendingReceivables: state.orders
-      .filter((order) => order.paymentStatus !== "Pago")
-      .reduce((sum, order) => sum + Number(order.amount || 0), 0),
+    pendingReceivables:
+      state.orders
+        .filter((order) => order.paymentStatus !== "Pago")
+        .reduce((sum, order) => sum + Number(order.amount || 0), 0) +
+      state.financialEntries
+        .filter((entry) => entry.entryType === "Receita" && entry.status !== "Pago")
+        .reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
     scheduledToday: state.appointments.filter((item) => item.date === todayIso()).length,
+    confirmedRevenue: paidOrders + paidExtraRevenue,
   };
 }
 
@@ -232,7 +477,9 @@ function bindNavigation() {
 function bindModals() {
   document.querySelectorAll("[data-open-modal]").forEach((button) => {
     button.addEventListener("click", () => {
-      const modal = document.getElementById(button.dataset.openModal);
+      const modalId = button.dataset.openModal;
+      prepareModalForCreate(modalId);
+      const modal = document.getElementById(modalId);
       modal?.showModal();
     });
   });
@@ -242,6 +489,11 @@ function bindModals() {
       button.closest("dialog")?.close();
     });
   });
+
+  elements.leadModal?.addEventListener("close", resetLeadFormState);
+  elements.appointmentModal?.addEventListener("close", resetAppointmentFormState);
+  elements.orderModal?.addEventListener("close", resetOrderFormState);
+  elements.financialEntryModal?.addEventListener("close", resetFinancialEntryFormState);
 }
 
 function bindForms() {
@@ -251,25 +503,35 @@ function bindForms() {
 
     try {
       const form = new FormData(elements.leadForm);
-
-      const { error } = await supabaseClient.from("leads").insert({
+      const leadId = String(form.get("leadId") || "").trim();
+      const existingLead = state.leads.find((item) => item.id === leadId);
+      const payload = {
         name: form.get("name"),
         phone: form.get("phone"),
         service: form.get("service"),
         address: form.get("address"),
         source: form.get("source"),
         priority: form.get("priority"),
-        status: "novo",
+        status: existingLead?.status || "novo",
         notes: form.get("notes"),
-        last_contact: "Agora",
-      });
+        last_contact: leadId ? "Atualizado agora" : "Agora",
+      };
+
+      const operation = leadId
+        ? supabaseClient.from("leads").update(payload).eq("id", leadId)
+        : supabaseClient.from("leads").insert(payload);
+      const { error } = await operation;
 
       throwIfError(error);
-      await insertActivity("Novo lead cadastrado", `${form.get("name")} entrou para ${form.get("service")}.`);
-      elements.leadForm.reset();
+      await insertActivity(
+        leadId ? "Contato atualizado" : "Novo lead cadastrado",
+        leadId
+          ? `${form.get("name")} teve os dados comerciais atualizados.`
+          : `${form.get("name")} entrou para ${form.get("service")}.`
+      );
       elements.leadModal.close();
       await bootstrap();
-      showFeedback("Lead salvo com sucesso.", "success");
+      showFeedback(leadId ? "Contato atualizado com sucesso." : "Lead salvo com sucesso.", "success");
     } catch (error) {
       showFeedback(translateError(error.message), "error");
     }
@@ -281,8 +543,8 @@ function bindForms() {
 
     try {
       const form = new FormData(elements.appointmentForm);
-
-      const { error } = await supabaseClient.from("appointments").insert({
+      const appointmentId = String(form.get("appointmentId") || "").trim();
+      const payload = {
         customer: form.get("customer"),
         phone: form.get("phone"),
         service: form.get("service"),
@@ -290,14 +552,23 @@ function bindForms() {
         date: form.get("date"),
         time: form.get("time"),
         notes: form.get("notes"),
-      });
+      };
+
+      const operation = appointmentId
+        ? supabaseClient.from("appointments").update(payload).eq("id", appointmentId)
+        : supabaseClient.from("appointments").insert(payload);
+      const { error } = await operation;
 
       throwIfError(error);
-      await insertActivity("Visita agendada", `${form.get("customer")} foi agendado para ${form.get("date")} as ${form.get("time")}.`);
-      elements.appointmentForm.reset();
+      await insertActivity(
+        appointmentId ? "Visita atualizada" : "Visita agendada",
+        appointmentId
+          ? `${form.get("customer")} teve a agenda atualizada para ${form.get("date")} as ${form.get("time")}.`
+          : `${form.get("customer")} foi agendado para ${form.get("date")} as ${form.get("time")}.`
+      );
       elements.appointmentModal.close();
       await bootstrap();
-      showFeedback("Visita agendada com sucesso.", "success");
+      showFeedback(appointmentId ? "Visita atualizada com sucesso." : "Visita agendada com sucesso.", "success");
     } catch (error) {
       showFeedback(translateError(error.message), "error");
     }
@@ -309,10 +580,8 @@ function bindForms() {
 
     try {
       const form = new FormData(elements.orderForm);
-
-      const { data, error } = await supabaseClient
-        .from("orders")
-        .insert({
+      const orderId = String(form.get("orderId") || "").trim();
+      const payload = {
           customer: form.get("customer"),
           phone: form.get("phone"),
           service: form.get("service"),
@@ -323,17 +592,68 @@ function bindForms() {
           status: form.get("status"),
           payment_status: form.get("paymentStatus"),
           notes: form.get("notes"),
-        })
-        .select("id")
-        .single();
+        };
+
+      const query = orderId
+        ? supabaseClient.from("orders").update(payload).eq("id", orderId).select("id").single()
+        : supabaseClient.from("orders").insert(payload).select("id").single();
+      const { data, error } = await query;
 
       throwIfError(error);
-      await insertActivity("Nova OS criada", `${form.get("customer")} entrou em execucao para ${form.get("service")}.`);
+      await insertActivity(
+        orderId ? "OS atualizada" : "Nova OS criada",
+        orderId
+          ? `${form.get("customer")} teve a ordem de servico atualizada.`
+          : `${form.get("customer")} entrou em execucao para ${form.get("service")}.`
+      );
       selectedOrderId = data.id;
-      elements.orderForm.reset();
       elements.orderModal.close();
       await bootstrap();
-      showFeedback("Ordem de servico criada com sucesso.", "success");
+      showFeedback(orderId ? "Ordem de servico atualizada com sucesso." : "Ordem de servico criada com sucesso.", "success");
+    } catch (error) {
+      showFeedback(translateError(error.message), "error");
+    }
+  });
+
+  elements.financialEntryForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    clearFeedback();
+
+    if (!state.meta.financeModuleReady) {
+      showFeedback("Rode o arquivo crm/supabase-finance-upgrade.sql no Supabase para liberar lancamentos.", "error");
+      return;
+    }
+
+    try {
+      const form = new FormData(elements.financialEntryForm);
+      const financialEntryId = String(form.get("financialEntryId") || "").trim();
+      const payload = {
+        entry_type: form.get("entryType"),
+        category: form.get("category"),
+        description: form.get("description"),
+        entry_date: form.get("entryDate"),
+        amount: Number(form.get("amount") || 0),
+        status: form.get("status"),
+        payment_method: form.get("paymentMethod"),
+        reference: form.get("reference"),
+      };
+
+      const operation = financialEntryId
+        ? supabaseClient.from("financial_entries").update(payload).eq("id", financialEntryId)
+        : supabaseClient.from("financial_entries").insert(payload);
+      const { error } = await operation;
+
+      throwIfError(error);
+      await insertActivity(
+        financialEntryId ? "Lancamento financeiro atualizado" : "Lancamento financeiro criado",
+        financialEntryId
+          ? `${form.get("description")} foi atualizado no financeiro.`
+          : `${form.get("entryType")} registrada em ${form.get("category")}.`
+      );
+      elements.financialEntryModal.close();
+      await bootstrap();
+      setActiveSection("financeiro");
+      showFeedback(financialEntryId ? "Lancamento atualizado com sucesso." : "Lancamento contabil salvo com sucesso.", "success");
     } catch (error) {
       showFeedback(translateError(error.message), "error");
     }
@@ -366,6 +686,14 @@ function bindSidebar() {
 
 function bindActionDelegation() {
   document.addEventListener("click", async (event) => {
+    const editLeadButton = event.target.closest("[data-edit-lead]");
+
+    if (editLeadButton) {
+      event.preventDefault();
+      openLeadEditor(editLeadButton.dataset.editLead);
+      return;
+    }
+
     const deleteLeadButton = event.target.closest("[data-delete-lead]");
 
     if (deleteLeadButton) {
@@ -374,11 +702,27 @@ function bindActionDelegation() {
       return;
     }
 
+    const editAppointmentButton = event.target.closest("[data-edit-appointment]");
+
+    if (editAppointmentButton) {
+      event.preventDefault();
+      openAppointmentEditor(editAppointmentButton.dataset.editAppointment);
+      return;
+    }
+
     const deleteAppointmentButton = event.target.closest("[data-delete-appointment]");
 
     if (deleteAppointmentButton) {
       event.preventDefault();
       await deleteAppointment(deleteAppointmentButton.dataset.deleteAppointment);
+      return;
+    }
+
+    const editOrderButton = event.target.closest("[data-edit-order]");
+
+    if (editOrderButton) {
+      event.preventDefault();
+      openOrderEditor(editOrderButton.dataset.editOrder);
       return;
     }
 
@@ -399,6 +743,22 @@ function bindActionDelegation() {
         deleteAttachmentButton.dataset.attachmentPath,
         deleteAttachmentButton.dataset.attachmentName
       );
+      return;
+    }
+
+    const deleteFinancialEntryButton = event.target.closest("[data-delete-financial-entry]");
+
+    const editFinancialEntryButton = event.target.closest("[data-edit-financial-entry]");
+
+    if (editFinancialEntryButton) {
+      event.preventDefault();
+      openFinancialEntryEditor(editFinancialEntryButton.dataset.editFinancialEntry);
+      return;
+    }
+
+    if (deleteFinancialEntryButton) {
+      event.preventDefault();
+      await deleteFinancialEntry(deleteFinancialEntryButton.dataset.deleteFinancialEntry);
     }
   });
 }
@@ -583,6 +943,17 @@ function renderPipeline() {
                             <div class="lead-header-actions">
                               <span class="priority ${normalizeKey(lead.priority)}">${lead.priority}</span>
                               <button
+                                class="action-icon-button"
+                                type="button"
+                                data-edit-lead="${lead.id}"
+                                aria-label="Editar lead ${escapeHtml(lead.name)}"
+                                title="Editar lead"
+                              >
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                  <path d="M4 20H8L18.5 9.5C19.33 8.67 19.33 7.33 18.5 6.5V6.5C17.67 5.67 16.33 5.67 15.5 6.5L5 17V20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                              </button>
+                              <button
                                 class="action-icon-button danger-button"
                                 type="button"
                                 data-delete-lead="${lead.id}"
@@ -703,6 +1074,9 @@ function renderCustomers() {
               <td>${customer.lastContact}</td>
               <td>
                 <div class="table-actions">
+                  <button class="ghost-button table-button" type="button" data-edit-lead="${customer.id}">
+                    Editar
+                  </button>
                   <button class="ghost-button table-button danger-button" type="button" data-delete-lead="${customer.id}">
                     Excluir
                   </button>
@@ -736,6 +1110,9 @@ function renderAgenda() {
                           </div>
                           <div class="stack-actions schedule-actions">
                             <span class="badge">${item.time}</span>
+                            <button class="ghost-button table-button" type="button" data-edit-appointment="${item.id}">
+                              Editar
+                            </button>
                             <button class="ghost-button table-button danger-button" type="button" data-delete-appointment="${item.id}">
                               Excluir
                             </button>
@@ -784,6 +1161,9 @@ function renderOrders() {
               <td>${order.attachmentCount || 0}</td>
               <td>
                 <div class="table-actions">
+                  <button class="ghost-button table-button" type="button" data-edit-order="${order.id}">
+                    Editar
+                  </button>
                   <button class="ghost-button table-button danger-button" type="button" data-delete-order="${order.id}">
                     Excluir
                   </button>
@@ -873,6 +1253,7 @@ async function renderSelectedOrder() {
 
     <div class="detail-actions">
       <a class="action-button" href="${buildWhatsAppLink(order)}" target="_blank" rel="noreferrer">Falar no WhatsApp</a>
+      <button class="ghost-button" type="button" data-edit-order="${order.id}">Editar OS</button>
       <button class="ghost-button" type="button" id="print-order-button">Imprimir OS</button>
       <button class="ghost-button danger-button" type="button" data-delete-order="${order.id}">Excluir OS</button>
     </div>
@@ -956,40 +1337,78 @@ async function renderSelectedOrder() {
 }
 
 function renderFinance() {
-  const total = state.orders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
-  const paid = state.orders
-    .filter((order) => order.paymentStatus === "Pago")
-    .reduce((sum, order) => sum + Number(order.amount || 0), 0);
-  const pending = state.orders
-    .filter((order) => order.paymentStatus !== "Pago")
-    .reduce((sum, order) => sum + Number(order.amount || 0), 0);
+  const financeData = buildFinanceData();
 
-  elements.financeCards.innerHTML = [
-    { label: "Faturamento previsto", hint: "Somando todas as OS", value: formatCurrency(total) },
-    { label: "Recebido", hint: "Pagamentos confirmados", value: formatCurrency(paid) },
-    { label: "Em aberto", hint: "Cobrancas pendentes", value: formatCurrency(pending) },
-  ]
+  if (elements.financialEntryButton) {
+    elements.financialEntryButton.disabled = !state.meta.financeModuleReady;
+    elements.financialEntryButton.textContent = state.meta.financeModuleReady ? "Novo lancamento" : "Ativar lancamentos";
+  }
+
+  if (state.meta.financeModuleReady) {
+    elements.financeAlert.textContent = "";
+    elements.financeAlert.classList.add("is-hidden");
+  } else {
+    elements.financeAlert.innerHTML =
+      'Lance despesas e receitas avulsas rodando primeiro o arquivo <strong>crm/supabase-finance-upgrade.sql</strong> no Supabase.';
+    elements.financeAlert.classList.remove("is-hidden");
+  }
+
+  elements.financeCards.innerHTML = financeData.summaryCards
     .map(
-      (row) => `
-        <div class="finance-row">
-          <div>
-            <strong>${row.label}</strong>
-            <span class="muted">${row.hint}</span>
-          </div>
-          <strong>${row.value}</strong>
-        </div>
+      (card) => `
+        <article class="finance-stat-card ${card.tone}">
+          <span class="finance-stat-label">${card.label}</span>
+          <strong class="finance-stat-value">${card.value}</strong>
+          <span class="finance-stat-hint">${card.hint}</span>
+          <span class="finance-stat-trend">${card.trend}</span>
+        </article>
       `
     )
     .join("");
 
-  const receivables = getFilteredReceivables();
+  elements.financeHealth.innerHTML = financeData.healthItems.length
+    ? financeData.healthItems
+        .map(
+          (item) => `
+            <div class="finance-health-row">
+              <div>
+                <strong>${item.label}</strong>
+                <span class="muted">${item.description}</span>
+              </div>
+              <div class="finance-health-metric">
+                <strong>${item.value}</strong>
+                <span class="status-pill ${item.tone}">${item.tag}</span>
+              </div>
+            </div>
+          `
+        )
+        .join("")
+    : `<div class="empty-state">Sem indicadores financeiros no momento.</div>`;
 
-  elements.receivablesTable.innerHTML = receivables.length
-    ? receivables
+  elements.financeBreakdown.innerHTML = `
+    <div class="finance-breakdown-group">
+      <span class="finance-group-label">Receita por servico</span>
+      ${renderBreakdownRows(financeData.serviceBreakdown)}
+    </div>
+    <div class="finance-breakdown-group">
+      <span class="finance-group-label">Despesas por categoria</span>
+      ${renderBreakdownRows(financeData.expenseBreakdown)}
+    </div>
+  `;
+
+  elements.receivablesTable.innerHTML = financeData.receivables.length
+    ? financeData.receivables
         .map(
           (item) => `
             <tr>
-              <td>${item.customer}</td>
+              <td class="table-cell-primary">
+                <strong>${item.code}</strong><br>
+                <span class="table-subline">${item.status}</span>
+              </td>
+              <td>
+                <strong>${item.customer}</strong><br>
+                <span class="table-subline">${item.phone || "Sem telefone"}</span>
+              </td>
               <td>${item.service}</td>
               <td>${formatDate(item.date)}</td>
               <td>${formatCurrency(item.amount)}</td>
@@ -1008,21 +1427,414 @@ function renderFinance() {
           `
         )
         .join("")
-    : `<tr><td colspan="5"><div class="empty-state">Nenhum recebivel encontrado.</div></td></tr>`;
+    : `<tr><td colspan="6"><div class="empty-state">Nenhum recebivel encontrado.</div></td></tr>`;
+
+  elements.financeEntriesTable.innerHTML = state.meta.financeModuleReady
+    ? financeData.entries.length
+      ? financeData.entries
+          .map(
+            (entry) => `
+              <tr>
+                <td><span class="badge ${entry.entryType === "Despesa" ? "finance-badge-danger" : "finance-badge-success"}">${entry.entryType}</span></td>
+                <td>${entry.category}</td>
+                <td class="table-cell-primary">
+                  <strong>${entry.description}</strong><br>
+                  <span class="table-subline">${entry.reference || entry.paymentMethod}</span>
+                </td>
+                <td>${formatDate(entry.entryDate)}</td>
+                <td>${formatCurrency(entry.amount)}</td>
+                <td>
+                  <select class="status-select" data-entry-status-id="${entry.id}">
+                    ${financialEntryStatuses
+                      .map(
+                        (status) => `
+                          <option value="${status}" ${entry.status === status ? "selected" : ""}>${status}</option>
+                        `
+                      )
+                      .join("")}
+                  </select>
+                </td>
+                <td>
+                  <div class="table-actions">
+                    <button class="ghost-button table-button" type="button" data-edit-financial-entry="${entry.id}">
+                      Editar
+                    </button>
+                    <button class="ghost-button table-button danger-button" type="button" data-delete-financial-entry="${entry.id}">
+                      Excluir
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            `
+          )
+          .join("")
+      : `<tr><td colspan="7"><div class="empty-state">Nenhum lancamento manual encontrado.</div></td></tr>`
+    : `<tr><td colspan="7"><div class="empty-state">Ative o upgrade financeiro no Supabase para salvar despesas e receitas avulsas.</div></td></tr>`;
+
+  elements.financeTimeline.innerHTML = financeData.timeline.length
+    ? financeData.timeline
+        .map(
+          (item) => `
+            <div class="finance-timeline-item">
+              <div>
+                <strong>${item.title}</strong>
+                <span class="muted">${item.description}</span>
+              </div>
+              <div class="finance-health-metric">
+                <strong class="${item.amountTone}">${formatCurrency(item.amount)}</strong>
+                <span class="badge">${item.when}</span>
+              </div>
+            </div>
+          `
+        )
+        .join("")
+    : `<div class="empty-state">Nenhuma movimentacao relevante encontrada.</div>`;
+
+  elements.financePlanning.innerHTML = financeData.planning.length
+    ? financeData.planning
+        .map(
+          (item) => `
+            <div class="finance-planning-item">
+              <div>
+                <strong>${item.title}</strong>
+                <span class="muted">${item.description}</span>
+              </div>
+              <span class="status-pill ${item.tone}">${item.tag}</span>
+            </div>
+          `
+        )
+        .join("")
+    : `<div class="empty-state">Sem recomendacoes financeiras no momento.</div>`;
 
   document.querySelectorAll("[data-payment-id]").forEach((select) => {
     select.addEventListener("change", async (event) => {
-      const { error } = await supabaseClient
-        .from("orders")
-        .update({ payment_status: event.target.value })
-        .eq("id", event.target.dataset.paymentId);
+      try {
+        const { error } = await supabaseClient
+          .from("orders")
+          .update({ payment_status: event.target.value })
+          .eq("id", event.target.dataset.paymentId);
 
-      throwIfError(error);
-      await insertActivity("Financeiro atualizado", `Pagamento alterado para ${event.target.value}.`);
-      await bootstrap();
-      showFeedback("Pagamento atualizado com sucesso.", "success");
+        throwIfError(error);
+        await insertActivity("Financeiro atualizado", `Pagamento de OS alterado para ${event.target.value}.`);
+        await bootstrap();
+        showFeedback("Pagamento atualizado com sucesso.", "success");
+      } catch (error) {
+        showFeedback(translateError(error.message), "error");
+      }
     });
   });
+
+  document.querySelectorAll("[data-entry-status-id]").forEach((select) => {
+    select.addEventListener("change", async (event) => {
+      try {
+        const { error } = await supabaseClient
+          .from("financial_entries")
+          .update({ status: event.target.value })
+          .eq("id", event.target.dataset.entryStatusId);
+
+        throwIfError(error);
+        await insertActivity("Lancamento atualizado", `Situacao financeira alterada para ${event.target.value}.`);
+        await bootstrap();
+        showFeedback("Lancamento atualizado com sucesso.", "success");
+      } catch (error) {
+        showFeedback(translateError(error.message), "error");
+      }
+    });
+  });
+}
+
+function buildFinanceData() {
+  const orders = getFilteredOrders().filter((order) => order.status !== "Cancelado");
+  const receivables = getFilteredReceivables();
+  const entries = getFilteredFinancialEntries();
+  const today = todayIso();
+  const currentMonthKey = today.slice(0, 7);
+
+  const orderProjected = sumAmounts(orders, "amount");
+  const paidOrders = sumAmounts(
+    orders.filter((order) => order.paymentStatus === "Pago"),
+    "amount"
+  );
+  const openOrders = sumAmounts(
+    orders.filter((order) => order.paymentStatus !== "Pago"),
+    "amount"
+  );
+  const manualRevenuePaid = sumAmounts(
+    entries.filter((entry) => entry.entryType === "Receita" && entry.status === "Pago"),
+    "amount"
+  );
+  const manualRevenuePending = sumAmounts(
+    entries.filter((entry) => entry.entryType === "Receita" && entry.status !== "Pago"),
+    "amount"
+  );
+  const expensesPaid = sumAmounts(
+    entries.filter((entry) => entry.entryType === "Despesa" && entry.status === "Pago"),
+    "amount"
+  );
+  const expensesPending = sumAmounts(
+    entries.filter((entry) => entry.entryType === "Despesa" && entry.status !== "Pago"),
+    "amount"
+  );
+  const confirmedRevenue = paidOrders + manualRevenuePaid;
+  const projectedRevenue = orderProjected + manualRevenuePaid + manualRevenuePending;
+  const openReceivables = openOrders + manualRevenuePending;
+  const operationalBalance = confirmedRevenue - expensesPaid;
+  const projectedBalance = projectedRevenue - (expensesPaid + expensesPending);
+  const averageTicket = orders.length ? orderProjected / orders.length : 0;
+  const overdueReceivables = sumAmounts(
+    receivables.filter((item) => item.date < today),
+    "amount"
+  ) +
+    sumAmounts(
+      entries.filter((entry) => entry.entryType === "Receita" && entry.status !== "Pago" && entry.entryDate < today),
+      "amount"
+    );
+
+  const monthOrders = orders.filter((order) => order.date.slice(0, 7) === currentMonthKey);
+  const monthEntries = entries.filter((entry) => entry.entryDate.slice(0, 7) === currentMonthKey);
+  const monthRevenue =
+    sumAmounts(monthOrders.filter((order) => order.paymentStatus === "Pago"), "amount") +
+    sumAmounts(monthEntries.filter((entry) => entry.entryType === "Receita" && entry.status === "Pago"), "amount");
+  const monthExpenses = sumAmounts(
+    monthEntries.filter((entry) => entry.entryType === "Despesa" && entry.status === "Pago"),
+    "amount"
+  );
+  const monthBalance = monthRevenue - monthExpenses;
+  const margin = confirmedRevenue > 0 ? operationalBalance / confirmedRevenue : 0;
+
+  const serviceBreakdown = buildBreakdownItems(orders, "service", "amount");
+  const expenseBreakdown = buildBreakdownItems(
+    entries.filter((entry) => entry.entryType === "Despesa"),
+    "category",
+    "amount"
+  );
+
+  const timeline = buildFinanceTimeline(receivables, entries);
+  const planning = buildFinancePlanning({
+    openReceivables,
+    overdueReceivables,
+    expensesPending,
+    operationalBalance,
+    monthBalance,
+    topService: serviceBreakdown[0],
+    financeModuleReady: state.meta.financeModuleReady,
+  });
+
+  return {
+    receivables,
+    entries,
+    serviceBreakdown,
+    expenseBreakdown,
+    timeline,
+    planning,
+    summaryCards: [
+      {
+        label: "Saldo operacional",
+        value: formatCurrency(operationalBalance),
+        hint: "Receita confirmada menos despesas pagas",
+        trend: operationalBalance >= 0 ? "Operacao saudavel" : "Caixa apertado",
+        tone: operationalBalance >= 0 ? "is-positive" : "is-warning",
+      },
+      {
+        label: "Receita confirmada",
+        value: formatCurrency(confirmedRevenue),
+        hint: "OS pagas + receitas extras liquidadas",
+        trend: `${orders.filter((order) => order.paymentStatus === "Pago").length} OS recebidas`,
+        tone: "is-positive",
+      },
+      {
+        label: "A receber",
+        value: formatCurrency(openReceivables),
+        hint: "OS pendentes e receitas futuras",
+        trend: `${receivables.length} cobrancas abertas`,
+        tone: openReceivables > 0 ? "is-warning" : "is-neutral",
+      },
+      {
+        label: "Despesas pagas",
+        value: formatCurrency(expensesPaid),
+        hint: "Saidas confirmadas no financeiro",
+        trend: `${entries.filter((entry) => entry.entryType === "Despesa" && entry.status === "Pago").length} lancamentos pagos`,
+        tone: "is-danger",
+      },
+      {
+        label: "Despesas previstas",
+        value: formatCurrency(expensesPending),
+        hint: "Compromissos ainda em aberto",
+        trend: expensesPending > 0 ? "Reserve caixa" : "Sem pressao imediata",
+        tone: expensesPending > 0 ? "is-warning" : "is-neutral",
+      },
+      {
+        label: "Ticket medio",
+        value: formatCurrency(averageTicket),
+        hint: "Media financeira por OS ativa",
+        trend: `${orders.length} ordens no radar`,
+        tone: "is-neutral",
+      },
+    ],
+    healthItems: [
+      {
+        label: "Resultado do mes",
+        description: "Entradas e saidas pagas no mes atual.",
+        value: formatCurrency(monthBalance),
+        tag: monthBalance >= 0 ? "Positivo" : "Atencao",
+        tone: monthBalance >= 0 ? "status-pago" : "status-cancelado",
+      },
+      {
+        label: "Previsao liquida",
+        description: "Receita prevista menos despesas ja projetadas.",
+        value: formatCurrency(projectedBalance),
+        tag: projectedBalance >= 0 ? "Planejado" : "Risco",
+        tone: projectedBalance >= 0 ? "status-concluido" : "status-cancelado",
+      },
+      {
+        label: "Inadimplencia em atraso",
+        description: "Valores que ja passaram da data prevista.",
+        value: formatCurrency(overdueReceivables),
+        tag: overdueReceivables > 0 ? "Cobrar" : "Em dia",
+        tone: overdueReceivables > 0 ? "status-cancelado" : "status-pago",
+      },
+      {
+        label: "Margem operacional",
+        description: "Saldo operacional sobre a receita confirmada.",
+        value: formatPercent(margin),
+        tag: margin >= 0.2 ? "Saudavel" : "Monitorar",
+        tone: margin >= 0.2 ? "status-pago" : "status-orcamento-enviado",
+      },
+    ],
+  };
+}
+
+function renderBreakdownRows(items) {
+  if (!items.length) {
+    return `<div class="empty-state">Ainda nao ha dados suficientes para montar este comparativo.</div>`;
+  }
+
+  return items
+    .map(
+      (item) => `
+        <div class="finance-breakdown-row">
+          <div class="finance-breakdown-copy">
+            <strong>${item.label}</strong>
+            <span class="muted">${item.count} registro(s)</span>
+          </div>
+          <div class="finance-breakdown-metric">
+            <strong>${formatCurrency(item.total)}</strong>
+            <div class="finance-progress">
+              <span class="finance-progress-bar" style="width:${Math.max(item.share, 8)}%"></span>
+            </div>
+          </div>
+        </div>
+      `
+    )
+    .join("");
+}
+
+function buildBreakdownItems(items, labelKey, amountKey) {
+  const grouped = items.reduce((accumulator, item) => {
+    const label = item[labelKey] || "Sem classificacao";
+
+    if (!accumulator[label]) {
+      accumulator[label] = { label, total: 0, count: 0 };
+    }
+
+    accumulator[label].total += Number(item[amountKey] || 0);
+    accumulator[label].count += 1;
+    return accumulator;
+  }, {});
+
+  const totals = Object.values(grouped).sort((left, right) => right.total - left.total);
+  const grandTotal = totals.reduce((sum, item) => sum + item.total, 0) || 1;
+
+  return totals.slice(0, 5).map((item) => ({
+    ...item,
+    share: Math.round((item.total / grandTotal) * 100),
+  }));
+}
+
+function buildFinanceTimeline(receivables, entries) {
+  const items = [
+    ...receivables.map((item) => ({
+      sortDate: item.date,
+      title: `Recebimento ${item.code}`,
+      description: `${item.customer} - ${item.service}`,
+      amount: Number(item.amount || 0),
+      amountTone: "finance-positive",
+      when: formatDate(item.date),
+    })),
+    ...entries
+      .filter((entry) => entry.status !== "Pago")
+      .map((entry) => ({
+        sortDate: entry.entryDate,
+        title: `${entry.entryType} - ${entry.category}`,
+        description: entry.description,
+        amount: Number(entry.amount || 0),
+        amountTone: entry.entryType === "Despesa" ? "finance-negative" : "finance-positive",
+        when: formatDate(entry.entryDate),
+      })),
+  ];
+
+  return items.sort((left, right) => left.sortDate.localeCompare(right.sortDate)).slice(0, 6);
+}
+
+function buildFinancePlanning(data) {
+  const items = [];
+
+  if (!data.financeModuleReady) {
+    items.push({
+      title: "Liberar lancamentos avulsos",
+      description: "Rode o upgrade financeiro no Supabase para registrar despesas, impostos e receitas extras.",
+      tag: "Configurar",
+      tone: "status-orcamento-enviado",
+    });
+  }
+
+  if (data.overdueReceivables > 0) {
+    items.push({
+      title: "Cobrar valores vencidos",
+      description: `Existem ${formatCurrency(data.overdueReceivables)} em atraso e isso merece prioridade hoje.`,
+      tag: "Urgente",
+      tone: "status-cancelado",
+    });
+  }
+
+  if (data.expensesPending > 0) {
+    items.push({
+      title: "Reservar caixa para despesas",
+      description: `Separe ${formatCurrency(data.expensesPending)} para compromissos pendentes do operacional.`,
+      tag: "Planejar",
+      tone: "status-orcamento-enviado",
+    });
+  }
+
+  if (data.topService) {
+    items.push({
+      title: "Servico lider de faturamento",
+      description: `${data.topService.label} concentra ${formatCurrency(data.topService.total)} no periodo filtrado.`,
+      tag: "Escalar",
+      tone: "status-pago",
+    });
+  }
+
+  items.push({
+    title: "Resultado do mes",
+    description:
+      data.monthBalance >= 0
+        ? `A operacao do mes esta positiva em ${formatCurrency(data.monthBalance)}.`
+        : `O mes esta negativo em ${formatCurrency(Math.abs(data.monthBalance))}; vale rever custos e cobrancas.`,
+    tag: data.monthBalance >= 0 ? "Saudavel" : "Atencao",
+    tone: data.monthBalance >= 0 ? "status-pago" : "status-cancelado",
+  });
+
+  if (data.openReceivables <= 0) {
+    items.push({
+      title: "Carteira em dia",
+      description: "Nao ha valores em aberto relevantes no momento.",
+      tag: "Estavel",
+      tone: "status-pago",
+    });
+  }
+
+  return items.slice(0, 5);
 }
 
 async function uploadAttachment(orderId, formElement) {
@@ -1174,6 +1986,22 @@ function getFilteredReceivables() {
   );
 }
 
+function getFilteredFinancialEntries() {
+  return state.financialEntries.filter((entry) =>
+    matchesSearch([
+      entry.entryType,
+      entry.category,
+      entry.description,
+      entry.status,
+      entry.paymentMethod,
+      entry.reference,
+      entry.entryDate,
+      formatDate(entry.entryDate),
+      formatCurrency(entry.amount),
+    ])
+  );
+}
+
 function matchesSearch(values) {
   if (!searchQuery) {
     return true;
@@ -1214,7 +2042,7 @@ function getSearchSectionCounts() {
     clientes: buildCustomerRows().length,
     agenda: getFilteredAppointments().length,
     ordens: getFilteredOrders().length,
-    financeiro: getFilteredReceivables().length,
+    financeiro: getFilteredReceivables().length + getFilteredFinancialEntries().length,
   };
 }
 
@@ -1293,6 +2121,21 @@ function mapActivity(row) {
   };
 }
 
+function mapFinancialEntry(row) {
+  return {
+    id: row.id,
+    entryType: row.entry_type,
+    category: row.category,
+    description: row.description,
+    entryDate: String(row.entry_date),
+    amount: Number(row.amount || 0),
+    status: row.status,
+    paymentMethod: row.payment_method,
+    reference: row.reference || "",
+    createdAt: row.created_at,
+  };
+}
+
 function throwIfError(error) {
   if (error) {
     throw new Error(error.message);
@@ -1308,6 +2151,10 @@ function translateError(message) {
     return "E-mail ou senha invalidos.";
   }
 
+  if (message.includes("financial_entries")) {
+    return "O modulo financeiro precisa do upgrade SQL no Supabase para salvar lancamentos.";
+  }
+
   return message;
 }
 
@@ -1315,6 +2162,14 @@ function formatCurrency(value) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
+  }).format(Number(value || 0));
+}
+
+function formatPercent(value) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "percent",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
   }).format(Number(value || 0));
 }
 
@@ -1362,6 +2217,22 @@ function normalizeKey(value) {
     .replace(/\s+/g, "-");
 }
 
+function sumAmounts(items, fieldName) {
+  return items.reduce((sum, item) => sum + Number(item[fieldName] || 0), 0);
+}
+
+function isMissingFinancialTableError(error) {
+  const message = String(error?.message || "");
+  const details = String(error?.details || "");
+  return (
+    error?.code === "42P01" ||
+    error?.code === "PGRST205" ||
+    message.includes("financial_entries") ||
+    message.includes("Could not find the table") ||
+    details.includes("financial_entries")
+  );
+}
+
 function sanitizeFileName(name) {
   return String(name)
     .normalize("NFD")
@@ -1385,7 +2256,7 @@ function getSectionTitle(section) {
     clientes: "Base de clientes",
     agenda: "Agenda de atendimentos",
     ordens: "Ordens de servico",
-    financeiro: "Controle financeiro",
+    financeiro: "Financeiro e contabilidade",
   };
 
   return titles[section] || "Fort Lar CRM";
@@ -1510,6 +2381,29 @@ async function deleteAttachment(attachmentId, storagePath, attachmentName) {
     await insertActivity("Anexo excluido", `${attachmentName || "Arquivo"} foi removido da OS.`);
     await bootstrap();
     showFeedback("Anexo excluido com sucesso.", "success");
+  } catch (error) {
+    showFeedback(translateError(error.message), "error");
+  }
+}
+
+async function deleteFinancialEntry(entryId) {
+  if (!entryId || !state.meta.financeModuleReady) {
+    return;
+  }
+
+  const entry = state.financialEntries.find((item) => item.id === entryId);
+
+  if (!confirmAction(`Excluir o lancamento ${entry?.description || "selecionado"}?`)) {
+    return;
+  }
+
+  try {
+    const { error } = await supabaseClient.from("financial_entries").delete().eq("id", entryId);
+    throwIfError(error);
+    await insertActivity("Lancamento excluido", `${entry?.description || "Registro financeiro"} foi removido do CRM.`);
+    await bootstrap();
+    setActiveSection("financeiro");
+    showFeedback("Lancamento excluido com sucesso.", "success");
   } catch (error) {
     showFeedback(translateError(error.message), "error");
   }
