@@ -29,8 +29,152 @@ html {
 }
 
 @media (min-width: 1100px) {
-  html {
-    zoom: 0.8;
+  body {
+    font-size: 14px;
+  }
+
+  .app-shell {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    padding: 1rem;
+    gap: 0.85rem;
+  }
+
+  .brand-panel,
+  .sidebar-card {
+    border-radius: 20px;
+  }
+
+  .brand-panel {
+    gap: 0.8rem;
+    padding: 0.85rem;
+  }
+
+  .brand-logo {
+    width: 76px;
+  }
+
+  .nav-item {
+    padding: 0.72rem 0.88rem;
+  }
+
+  .sidebar-card {
+    padding: 0.85rem;
+  }
+
+  .sidebar-metric {
+    padding: 0.72rem 0.78rem;
+  }
+
+  .main-panel {
+    padding: 1rem;
+  }
+
+  .topbar {
+    gap: 0.85rem;
+    padding: 0.85rem 0.95rem;
+    border-radius: 24px;
+  }
+
+  .topbar-left,
+  .topbar-right,
+  .topbar-actions {
+    gap: 0.7rem;
+  }
+
+  .topbar h1 {
+    font-size: clamp(1.45rem, 2vw, 1.95rem);
+  }
+
+  .search-field {
+    min-width: min(100%, 280px);
+    padding: 0.7rem 0.85rem;
+  }
+
+  .icon-button {
+    width: 40px;
+    height: 40px;
+  }
+
+  .action-icon-button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .action-button,
+  .ghost-button {
+    min-height: 42px;
+    padding: 0 0.9rem;
+  }
+
+  .page-section {
+    padding-top: 1rem;
+  }
+
+  .section-head,
+  .panel-head {
+    margin-bottom: 0.85rem;
+  }
+
+  .stats-grid,
+  .dashboard-grid,
+  .finance-grid,
+  .orders-layout,
+  .finance-summary-grid,
+  .finance-dashboard-grid,
+  .finance-secondary-grid,
+  .agenda-grid,
+  .pipeline-board {
+    gap: 0.85rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1.2fr 0.95fr 0.95fr;
+  }
+
+  .finance-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .finance-dashboard-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .orders-layout {
+    grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  }
+
+  .pipeline-board {
+    grid-template-columns: repeat(5, minmax(210px, 1fr));
+  }
+
+  .stat-card {
+    padding: 0.9rem 1rem;
+  }
+
+  .panel-card,
+  .agenda-day,
+  .pipeline-column {
+    padding: 1rem;
+  }
+
+  .table-wrap {
+    border-radius: 16px;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 0.78rem 0.72rem;
+  }
+
+  .order-detail-card {
+    top: 1rem;
   }
 }
 
