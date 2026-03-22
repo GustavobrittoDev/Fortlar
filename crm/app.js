@@ -173,7 +173,7 @@ function resetLeadFormState() {
     elements.leadModalTitle.textContent = "Cadastrar novo contato";
   }
   if (elements.leadSubmitButton) {
-    elements.leadSubmitButton.textContent = "Salvar lead";
+    elements.leadSubmitButton.textContent = "Salvar cliente";
   }
 }
 
