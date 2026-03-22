@@ -416,18 +416,40 @@ a {
 
 .sidebar-metric {
   display: grid;
-  gap: 0.22rem;
-  padding: 0.8rem 0.9rem;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.78rem 0.82rem;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-metric strong {
-  display: block;
-  font-size: 1.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  min-height: 42px;
+  padding: 0 0.7rem;
+  font-size: 1.1rem;
   line-height: 1;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-metric span {
+  display: block;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  text-align: right;
+}
+
+#sidebar-revenue {
+  min-width: 96px;
+  font-size: 1rem;
 }
 
 .page-layer {
