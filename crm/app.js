@@ -77,6 +77,7 @@ async function initialize() {
   bindForms();
   bindSearch();
   bindSidebar();
+  bindActionDelegation();
 
   try {
     supabaseClient = createSupabaseClient();
@@ -362,6 +363,45 @@ function bindSidebar() {
   elements.pageLayer?.addEventListener("click", closeSidebar);
 }
 
+function bindActionDelegation() {
+  document.addEventListener("click", async (event) => {
+    const deleteLeadButton = event.target.closest("[data-delete-lead]");
+
+    if (deleteLeadButton) {
+      event.preventDefault();
+      await deleteLead(deleteLeadButton.dataset.deleteLead);
+      return;
+    }
+
+    const deleteAppointmentButton = event.target.closest("[data-delete-appointment]");
+
+    if (deleteAppointmentButton) {
+      event.preventDefault();
+      await deleteAppointment(deleteAppointmentButton.dataset.deleteAppointment);
+      return;
+    }
+
+    const deleteOrderButton = event.target.closest("[data-delete-order]");
+
+    if (deleteOrderButton) {
+      event.preventDefault();
+      await deleteOrder(deleteOrderButton.dataset.deleteOrder);
+      return;
+    }
+
+    const deleteAttachmentButton = event.target.closest("[data-delete-attachment]");
+
+    if (deleteAttachmentButton) {
+      event.preventDefault();
+      await deleteAttachment(
+        deleteAttachmentButton.dataset.deleteAttachment,
+        deleteAttachmentButton.dataset.attachmentPath,
+        deleteAttachmentButton.dataset.attachmentName
+      );
+    }
+  });
+}
+
 function closeSidebar() {
   elements.sidebar.classList.remove("is-open");
   elements.pageLayer.classList.remove("is-visible");
@@ -526,7 +566,24 @@ function renderPipeline() {
                               <strong>${lead.name}</strong>
                               <span class="lead-id">${lead.id}</span>
                             </div>
-                            <span class="priority ${normalizeKey(lead.priority)}">${lead.priority}</span>
+                            <div class="lead-header-actions">
+                              <span class="priority ${normalizeKey(lead.priority)}">${lead.priority}</span>
+                              <button
+                                class="action-icon-button danger-button"
+                                type="button"
+                                data-delete-lead="${lead.id}"
+                                aria-label="Excluir lead ${escapeHtml(lead.name)}"
+                                title="Excluir lead"
+                              >
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                  <path d="M4 7H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                  <path d="M9 7V5.5C9 4.67 9.67 4 10.5 4H13.5C14.33 4 15 4.67 15 5.5V7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                  <path d="M7.5 9.5V17.5C7.5 18.33 8.17 19 9 19H15C15.83 19 16.5 18.33 16.5 17.5V9.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                  <path d="M10 11V16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                  <path d="M14 11V16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                              </button>
+                            </div>
                           </div>
                           <div class="lead-card-body">
                             <div class="lead-meta-row">
@@ -622,19 +679,26 @@ function renderCustomers() {
         .map(
           (customer) => `
             <tr>
-              <td>
+              <td class="table-cell-primary">
                 <strong>${customer.name}</strong><br>
-                <span class="muted">${customer.phone || "Sem telefone"}</span>
+                <span class="table-subline">${customer.phone || "Sem telefone"}</span>
               </td>
-              <td>${customer.service}</td>
-              <td>${customer.address}</td>
+              <td><span class="badge">${customer.service}</span></td>
+              <td class="table-cell-address">${customer.address}</td>
               <td><span class="status-pill ${leadStatusClass(customer.status)}">${getLeadStageLabel(customer.status)}</span></td>
               <td>${customer.lastContact}</td>
+              <td>
+                <div class="table-actions">
+                  <button class="ghost-button table-button danger-button" type="button" data-delete-lead="${customer.id}">
+                    Excluir
+                  </button>
+                </div>
+              </td>
             </tr>
           `
         )
         .join("")
-    : `<tr><td colspan="5"><div class="empty-state">Nenhum cliente encontrado.</div></td></tr>`;
+    : `<tr><td colspan="6"><div class="empty-state">Nenhum cliente encontrado.</div></td></tr>`;
 }
 
 function renderAgenda() {
@@ -656,9 +720,12 @@ function renderAgenda() {
                             <strong>${item.customer}</strong>
                             <span class="muted">${item.service} · ${item.address}</span>
                           </div>
-                          <div class="stack-actions">
+                          <div class="stack-actions schedule-actions">
                             <span class="badge">${item.time}</span>
                             <a class="text-link" href="${buildCalendarLink(item)}" target="_blank" rel="noreferrer">Google Calendar</a>
+                            <button class="ghost-button table-button danger-button" type="button" data-delete-appointment="${item.id}">
+                              Excluir
+                            </button>
                           </div>
                         </div>
                       `
@@ -685,7 +752,7 @@ function renderOrders() {
         .map(
           (order) => `
             <tr class="table-row-button ${order.id === selectedOrderId ? "is-selected" : ""}" data-order-row="${order.id}">
-              <td><strong>${order.code}</strong></td>
+              <td class="table-cell-primary"><strong>${order.code}</strong></td>
               <td>${order.customer}</td>
               <td>${order.service}</td>
               <td>${formatDateTime(order.date, order.time)}</td>
@@ -702,11 +769,18 @@ function renderOrders() {
                 </select>
               </td>
               <td>${order.attachmentCount || 0}</td>
+              <td>
+                <div class="table-actions">
+                  <button class="ghost-button table-button danger-button" type="button" data-delete-order="${order.id}">
+                    Excluir
+                  </button>
+                </div>
+              </td>
             </tr>
           `
         )
         .join("")
-    : `<tr><td colspan="7"><div class="empty-state">Nenhuma OS encontrada.</div></td></tr>`;
+    : `<tr><td colspan="8"><div class="empty-state">Nenhuma OS encontrada.</div></td></tr>`;
 
   document.querySelectorAll("[data-order-id]").forEach((select) => {
     select.addEventListener("change", async (event) => {
@@ -723,7 +797,11 @@ function renderOrders() {
   });
 
   document.querySelectorAll("[data-order-row]").forEach((row) => {
-    row.addEventListener("click", async () => {
+    row.addEventListener("click", async (event) => {
+      if (event.target.closest("button, select, a")) {
+        return;
+      }
+
       selectedOrderId = row.dataset.orderRow;
       renderOrders();
       await renderSelectedOrder();
@@ -784,6 +862,7 @@ async function renderSelectedOrder() {
       <a class="action-button" href="${buildWhatsAppLink(order)}" target="_blank" rel="noreferrer">Falar no WhatsApp</a>
       <button class="ghost-button" type="button" id="print-order-button">Imprimir OS</button>
       <a class="ghost-button" href="${buildCalendarLink(order)}" target="_blank" rel="noreferrer">Enviar ao Google Calendar</a>
+      <button class="ghost-button danger-button" type="button" data-delete-order="${order.id}">Excluir OS</button>
     </div>
 
     <div class="detail-block">
@@ -800,13 +879,24 @@ async function renderSelectedOrder() {
               ${attachments
                 .map(
                   (attachment) => `
-                    <a class="attachment-item" href="${attachment.url}" target="_blank" rel="noreferrer">
-                      <div>
+                    <div class="attachment-item">
+                      <div class="attachment-copy">
                         <strong>${attachment.originalName}</strong>
                         <span class="muted">${formatFileSize(attachment.size)} · ${formatDateTimeFromIso(attachment.createdAt)}</span>
                       </div>
-                      <span class="badge">Abrir</span>
-                    </a>
+                      <div class="table-actions attachment-actions">
+                        <a class="ghost-button table-button" href="${attachment.url}" target="_blank" rel="noreferrer">Abrir</a>
+                        <button
+                          class="ghost-button table-button danger-button"
+                          type="button"
+                          data-delete-attachment="${attachment.id}"
+                          data-attachment-path="${attachment.storagePath}"
+                          data-attachment-name="${escapeHtml(attachment.originalName)}"
+                        >
+                          Excluir
+                        </button>
+                      </div>
+                    </div>
                   `
                 )
                 .join("")}
@@ -964,6 +1054,7 @@ async function createAttachmentViewModel(row) {
     originalName: row.original_name,
     createdAt: row.created_at,
     size: row.file_size,
+    storagePath: row.storage_path,
     url: data.signedUrl,
   };
 }
@@ -983,6 +1074,7 @@ function buildCustomerRows() {
   getFilteredLeads().forEach((lead) => {
     if (!map.has(lead.name)) {
       map.set(lead.name, {
+        id: lead.id,
         name: lead.name,
         phone: lead.phone,
         service: lead.service,
@@ -1233,6 +1325,118 @@ function formatGoogleDate(value) {
   return new Date(value).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
 }
 
+function confirmAction(message) {
+  return window.confirm(message);
+}
+
+async function deleteLead(leadId) {
+  if (!leadId) {
+    return;
+  }
+
+  const lead = state.leads.find((item) => item.id === leadId);
+
+  if (!confirmAction(`Excluir o contato ${lead?.name || "selecionado"}? Esta acao nao pode ser desfeita.`)) {
+    return;
+  }
+
+  try {
+    const { error } = await supabaseClient.from("leads").delete().eq("id", leadId);
+    throwIfError(error);
+    await insertActivity("Contato excluido", `${lead?.name || "Lead"} foi removido do CRM.`);
+    await bootstrap();
+    showFeedback("Contato excluido com sucesso.", "success");
+  } catch (error) {
+    showFeedback(translateError(error.message), "error");
+  }
+}
+
+async function deleteAppointment(appointmentId) {
+  if (!appointmentId) {
+    return;
+  }
+
+  const appointment = state.appointments.find((item) => item.id === appointmentId);
+
+  if (!confirmAction(`Excluir a visita de ${appointment?.customer || "cliente"}?`)) {
+    return;
+  }
+
+  try {
+    const { error } = await supabaseClient.from("appointments").delete().eq("id", appointmentId);
+    throwIfError(error);
+    await insertActivity("Visita excluida", `${appointment?.customer || "Compromisso"} saiu da agenda.`);
+    await bootstrap();
+    showFeedback("Visita excluida com sucesso.", "success");
+  } catch (error) {
+    showFeedback(translateError(error.message), "error");
+  }
+}
+
+async function deleteOrder(orderId) {
+  if (!orderId) {
+    return;
+  }
+
+  const order = state.orders.find((item) => item.id === orderId);
+
+  if (!confirmAction(`Excluir a ordem ${order?.code || ""} de ${order?.customer || "cliente"}?`)) {
+    return;
+  }
+
+  try {
+    const { data: attachmentsRows, error: attachmentsError } = await supabaseClient
+      .from("attachments")
+      .select("storage_path")
+      .eq("order_id", orderId);
+    throwIfError(attachmentsError);
+
+    const storagePaths = (attachmentsRows || []).map((item) => item.storage_path).filter(Boolean);
+
+    if (storagePaths.length) {
+      const { error: storageError } = await supabaseClient.storage.from(state.meta.storageBucket).remove(storagePaths);
+      throwIfError(storageError);
+    }
+
+    const { error } = await supabaseClient.from("orders").delete().eq("id", orderId);
+    throwIfError(error);
+
+    if (selectedOrderId === orderId) {
+      selectedOrderId = null;
+    }
+
+    await insertActivity("OS excluida", `${order?.code || "Ordem"} foi removida do CRM.`);
+    await bootstrap();
+    showFeedback("Ordem de servico excluida com sucesso.", "success");
+  } catch (error) {
+    showFeedback(translateError(error.message), "error");
+  }
+}
+
+async function deleteAttachment(attachmentId, storagePath, attachmentName) {
+  if (!attachmentId || !storagePath) {
+    return;
+  }
+
+  if (!confirmAction(`Excluir o anexo ${attachmentName || "selecionado"}?`)) {
+    return;
+  }
+
+  try {
+    const { error: storageError } = await supabaseClient.storage.from(state.meta.storageBucket).remove([storagePath]);
+    throwIfError(storageError);
+
+    const { error } = await supabaseClient.from("attachments").delete().eq("id", attachmentId);
+    throwIfError(error);
+
+    await insertActivity("Anexo excluido", `${attachmentName || "Arquivo"} foi removido da OS.`);
+    await bootstrap();
+    showFeedback("Anexo excluido com sucesso.", "success");
+  } catch (error) {
+    showFeedback(translateError(error.message), "error");
+  }
+}
+
 function printOrder(order) {
   const printWindow = window.open("", "_blank", "noopener,noreferrer,width=960,height=720");
 
@@ -1248,7 +1452,7 @@ function printOrder(order) {
     minute: "2-digit",
   }).format(new Date());
 
-  const logoUrl = `${window.location.origin}/assets/logo-fortlar-transparent.png`;
+  const logoUrl = new URL("./assets/logo-fortlar-transparent.png", window.location.href).href;
 
   printWindow.document.write(`
     <!DOCTYPE html>
