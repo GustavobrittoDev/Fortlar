@@ -223,13 +223,7 @@ function bindNavigation() {
   navButtons.forEach((button) => {
     button.addEventListener("click", () => {
       const section = button.dataset.section;
-
-      navButtons.forEach((item) => item.classList.toggle("is-active", item === button));
-      document.querySelectorAll(".page-section").forEach((panel) => {
-        panel.classList.toggle("is-active", panel.id === section);
-      });
-
-      elements.pageTitle.textContent = getSectionTitle(section);
+      setActiveSection(section);
       closeSidebar();
     });
   });
@@ -347,10 +341,17 @@ function bindForms() {
 }
 
 function bindSearch() {
-  elements.search.addEventListener("input", (event) => {
-    searchQuery = event.target.value.trim().toLowerCase();
+  elements.search.addEventListener("input", async (event) => {
+    searchQuery = normalizeSearchTerm(event.target.value.trim());
     renderAll();
-    renderSelectedOrder();
+
+    const targetSection = findBestSectionForSearch();
+
+    if (targetSection) {
+      setActiveSection(targetSection);
+    }
+
+    await renderSelectedOrder();
   });
 }
 
@@ -416,6 +417,18 @@ function showApp() {
 function showLogin() {
   elements.authShell.classList.remove("is-hidden");
   elements.appShell.classList.add("is-hidden");
+}
+
+function setActiveSection(section) {
+  document.querySelectorAll(".nav-item").forEach((item) => {
+    item.classList.toggle("is-active", item.dataset.section === section);
+  });
+
+  document.querySelectorAll(".page-section").forEach((panel) => {
+    panel.classList.toggle("is-active", panel.id === section);
+  });
+
+  elements.pageTitle.textContent = getSectionTitle(section);
 }
 
 function showFeedback(message, type = "success") {
@@ -502,8 +515,9 @@ function renderDashboard() {
     })
     .join("");
 
-  const today = getAppointmentsForDate(todayIso());
-  const scheduleSource = today.length ? today : getUpcomingAppointments().slice(0, 4);
+  const appointmentSource = getFilteredAppointments();
+  const today = appointmentSource.filter((item) => item.date === todayIso());
+  const scheduleSource = today.length ? today : getUpcomingAppointments(appointmentSource).slice(0, 4);
 
   elements.todaySchedule.innerHTML = scheduleSource.length
     ? scheduleSource
@@ -521,7 +535,7 @@ function renderDashboard() {
         .join("")
     : `<div class="empty-state">Nenhum compromisso agendado.</div>`;
 
-  const activities = state.activities.filter((activity) => matchesSearch([activity.title, activity.description]));
+  const activities = getFilteredActivities();
 
   elements.activityList.innerHTML = activities.length
     ? activities
@@ -968,9 +982,7 @@ function renderFinance() {
     )
     .join("");
 
-  const receivables = state.orders.filter(
-    (order) => order.paymentStatus !== "Pago" && matchesSearch([order.customer, order.service, order.address])
-  );
+  const receivables = getFilteredReceivables();
 
   elements.receivablesTable.innerHTML = receivables.length
     ? receivables
@@ -1087,12 +1099,31 @@ function buildCustomerRows() {
 }
 
 function getFilteredLeads() {
-  return state.leads.filter((lead) => matchesSearch([lead.name, lead.phone, lead.service, lead.address, lead.notes]));
+  return state.leads.filter((lead) =>
+    matchesSearch([lead.name, lead.phone, lead.service, lead.address, lead.notes, lead.source, lead.priority, lead.status])
+  );
+}
+
+function getFilteredAppointments() {
+  return state.appointments.filter((item) =>
+    matchesSearch([item.customer, item.phone, item.service, item.address, item.notes, item.date, item.time, formatDate(item.date)])
+  );
 }
 
 function getFilteredOrders() {
   return state.orders.filter((order) =>
-    matchesSearch([order.code, order.customer, order.service, order.address, order.notes])
+    matchesSearch([
+      order.code,
+      order.customer,
+      order.phone,
+      order.service,
+      order.address,
+      order.notes,
+      order.status,
+      order.paymentStatus,
+      formatDate(order.date),
+      formatDateTime(order.date, order.time),
+    ])
   );
 }
 
@@ -1100,16 +1131,14 @@ function getAppointmentsForDate(date) {
   return state.appointments.filter((item) => item.date === date);
 }
 
-function getUpcomingAppointments() {
-  return [...state.appointments]
+function getUpcomingAppointments(source = state.appointments) {
+  return [...source]
     .sort(byDateTime)
     .filter((item) => new Date(`${item.date}T${item.time}:00`).getTime() >= Date.now());
 }
 
 function getAgendaDays() {
-  const sorted = [...state.appointments]
-    .filter((item) => matchesSearch([item.customer, item.service, item.address]))
-    .sort(byDateTime);
+  const sorted = [...getFilteredAppointments()].sort(byDateTime);
 
   const dates = [...new Set(sorted.map((item) => item.date))].slice(0, 3);
 
@@ -1125,16 +1154,85 @@ function getAgendaDays() {
     : [{ label: "Proximos dias", items: [] }];
 }
 
+function getFilteredActivities() {
+  return state.activities.filter((activity) => matchesSearch([activity.title, activity.description, activity.time]));
+}
+
+function getFilteredReceivables() {
+  return state.orders.filter(
+    (order) =>
+      order.paymentStatus !== "Pago" &&
+      matchesSearch([
+        order.code,
+        order.customer,
+        order.phone,
+        order.service,
+        order.address,
+        order.paymentStatus,
+        formatDate(order.date),
+      ])
+  );
+}
+
 function matchesSearch(values) {
   if (!searchQuery) {
     return true;
   }
 
-  return values.some((value) => String(value || "").toLowerCase().includes(searchQuery));
+  const compactQuery = searchQuery.replace(/\s+/g, "");
+
+  return values.some((value) => {
+    const normalizedValue = normalizeSearchTerm(value);
+    const compactValue = normalizedValue.replace(/\s+/g, "");
+
+    return normalizedValue.includes(searchQuery) || compactValue.includes(compactQuery);
+  });
 }
 
 function byDateTime(a, b) {
   return `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`);
+}
+
+function normalizeSearchTerm(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getCurrentSectionId() {
+  return document.querySelector(".page-section.is-active")?.id || "dashboard";
+}
+
+function getSearchSectionCounts() {
+  return {
+    dashboard: getFilteredActivities().length + getFilteredLeads().length + getFilteredAppointments().length,
+    pipeline: getFilteredLeads().length,
+    clientes: buildCustomerRows().length,
+    agenda: getFilteredAppointments().length,
+    ordens: getFilteredOrders().length,
+    financeiro: getFilteredReceivables().length,
+  };
+}
+
+function findBestSectionForSearch() {
+  if (!searchQuery) {
+    return null;
+  }
+
+  const counts = getSearchSectionCounts();
+  const currentSection = getCurrentSectionId();
+
+  if (currentSection !== "dashboard" && (counts[currentSection] || 0) > 0) {
+    return currentSection;
+  }
+
+  return ["pipeline", "clientes", "agenda", "ordens", "financeiro", "dashboard"].find(
+    (section) => (counts[section] || 0) > 0
+  ) || currentSection;
 }
 
 function mapLead(row) {
