@@ -1386,12 +1386,16 @@ function renderOrders() {
     ? orders
         .map(
           (order) => `
-            <tr class="table-row-button ${order.id === selectedOrderId ? "is-selected" : ""}" data-order-row="${order.id}">
+            <tr class="table-row-button order-payment-row ${paymentStatusClass(order.paymentStatus)} ${order.id === selectedOrderId ? "is-selected" : ""}" data-order-row="${order.id}">
               <td class="table-cell-primary"><strong>${order.code}</strong></td>
               <td>${order.customer}</td>
               <td>${order.service}</td>
               <td>${formatDateTime(order.date, order.time)}</td>
               <td>
+                <span class="payment-indicator ${paymentStatusClass(order.paymentStatus)}">
+                  <span class="payment-indicator-dot" aria-hidden="true"></span>
+                  ${order.paymentStatus}
+                </span>
                 <strong>${formatCurrency(order.amount)}</strong><br>
                 <span class="table-subline">Pago ${formatCurrency(order.amountPaid)} · Aberto ${formatCurrency(order.remainingAmount)}</span>
               </td>
@@ -1484,7 +1488,10 @@ async function renderSelectedOrder() {
         </div>
         <div>
           <span class="detail-label">Pagamento</span>
-          <strong>${order.paymentStatus}</strong>
+          <strong class="payment-indicator payment-indicator-detail ${paymentStatusClass(order.paymentStatus)}">
+            <span class="payment-indicator-dot" aria-hidden="true"></span>
+            ${order.paymentStatus}
+          </strong>
         </div>
         <div>
           <span class="detail-label">Valor total</span>
@@ -2735,6 +2742,10 @@ function sanitizeFileName(name) {
 
 function leadStatusClass(status) {
   return `status-${normalizeKey(getLeadStageLabel(status))}`;
+}
+
+function paymentStatusClass(status) {
+  return `payment-${normalizeKey(status)}`;
 }
 
 function getLeadStageLabel(key) {

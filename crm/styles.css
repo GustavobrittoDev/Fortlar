@@ -1297,6 +1297,110 @@ a {
   color: var(--text);
 }
 
+.payment-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.42rem;
+  padding: 0.34rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.payment-indicator-detail {
+  margin-bottom: 0;
+}
+
+.payment-indicator-dot {
+  width: 0.58rem;
+  height: 0.58rem;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 0 currentColor;
+  animation: payment-beacon-pulse 1.85s infinite;
+}
+
+.payment-pendente {
+  color: #a03f3f;
+}
+
+.payment-parcial {
+  color: #925a00;
+}
+
+.payment-pago {
+  color: #1c7a4d;
+}
+
+.payment-indicator.payment-pendente {
+  background: rgba(239, 91, 91, 0.12);
+}
+
+.payment-indicator.payment-parcial {
+  background: rgba(255, 177, 26, 0.18);
+}
+
+.payment-indicator.payment-pago {
+  background: rgba(31, 164, 99, 0.14);
+}
+
+.order-payment-row td:first-child {
+  position: relative;
+  padding-left: 1.15rem;
+}
+
+.order-payment-row td:first-child::before {
+  content: "";
+  position: absolute;
+  left: 0.32rem;
+  top: 0.68rem;
+  bottom: 0.68rem;
+  width: 4px;
+  border-radius: 999px;
+  background: rgba(20, 49, 77, 0.12);
+}
+
+.order-payment-row.payment-pendente td:first-child::before {
+  background: #ef5b5b;
+  box-shadow: 0 0 0 0 rgba(239, 91, 91, 0.3);
+}
+
+.order-payment-row.payment-parcial td:first-child::before {
+  background: #ffb11a;
+  box-shadow: 0 0 0 0 rgba(255, 177, 26, 0.26);
+}
+
+.order-payment-row.payment-pago td:first-child::before {
+  background: #1fa463;
+  box-shadow: 0 0 0 0 rgba(31, 164, 99, 0.24);
+}
+
+.order-payment-row.payment-pendente:hover {
+  background: rgba(239, 91, 91, 0.04);
+}
+
+.order-payment-row.payment-parcial:hover {
+  background: rgba(255, 177, 26, 0.06);
+}
+
+.order-payment-row.payment-pago:hover {
+  background: rgba(31, 164, 99, 0.05);
+}
+
+.order-payment-row.payment-pendente.is-selected {
+  background: rgba(239, 91, 91, 0.08);
+}
+
+.order-payment-row.payment-parcial.is-selected {
+  background: rgba(255, 177, 26, 0.1);
+}
+
+.order-payment-row.payment-pago.is-selected {
+  background: rgba(31, 164, 99, 0.09);
+}
+
 .table-wrap {
   overflow: auto;
   border-radius: 18px;
@@ -1382,6 +1486,23 @@ a {
 
 .table-row-button.is-selected {
   background: rgba(13, 110, 253, 0.06);
+}
+
+@keyframes payment-beacon-pulse {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+    transform: scale(0.96);
+  }
+
+  60% {
+    box-shadow: 0 0 0 8px transparent;
+    transform: scale(1);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    transform: scale(0.96);
+  }
 }
 
 .agenda-grid {
