@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fort Lar CRM</title>
+  <meta name="theme-color" content="#0f2844">
+  <meta
+    name="description"
+    content="CRM operacional da Fort Lar com login, agenda, pipeline, ordens de servico, anexos e controle financeiro."
+  >
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <section class="auth-shell" id="auth-shell">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <img src="../assets/logo-fortlar-transparent.png" alt="Logo Fort Lar" class="auth-logo">
+        <div>
+          <span class="eyebrow">CRM Fort Lar</span>
+          <h1>Controle profissional da operacao</h1>
+          <p>Login, agenda, leads, ordens de servico, anexos e acompanhamento completo em um unico painel.</p>
+        </div>
+      </div>
+
+      <form class="auth-form" id="login-form">
+        <label class="field">
+          <span>E-mail</span>
+          <input type="email" name="email" autocomplete="username" required>
+        </label>
+        <label class="field">
+          <span>Senha</span>
+          <input type="password" name="password" autocomplete="current-password" required>
+        </label>
+        <button class="action-button action-button-full" type="submit">Entrar no CRM</button>
+        <p class="auth-help">Use um usuario criado no Supabase Auth. As tabelas e policies estao em <strong>supabase-schema.sql</strong>.</p>
+        <p class="form-error" id="login-error" hidden></p>
+      </form>
+    </div>
+  </section>
+
+  <div class="app-shell is-hidden" id="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand-panel">
+        <img src="../assets/logo-fortlar-transparent.png" alt="Logo Fort Lar" class="brand-logo">
+        <div>
+          <strong>Fort Lar CRM</strong>
+          <p>Vendas, atendimento, execucao e financeiro no mesmo fluxo.</p>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav" aria-label="Modulos do CRM">
+        <button class="nav-item is-active" data-section="dashboard">Dashboard</button>
+        <button class="nav-item" data-section="pipeline">Pipeline</button>
+        <button class="nav-item" data-section="clientes">Clientes</button>
+        <button class="nav-item" data-section="agenda">Agenda</button>
+        <button class="nav-item" data-section="ordens">Ordens de servico</button>
+        <button class="nav-item" data-section="financeiro">Financeiro</button>
+      </nav>
+
+      <div class="sidebar-card">
+        <span class="sidebar-label">Resumo rapido</span>
+        <div class="sidebar-metric">
+          <strong id="sidebar-open-leads">0</strong>
+          <span>leads em aberto</span>
+        </div>
+        <div class="sidebar-metric">
+          <strong id="sidebar-today-visits">0</strong>
+          <span>visitas hoje</span>
+        </div>
+        <div class="sidebar-metric">
+          <strong id="sidebar-revenue">R$ 0</strong>
+          <span>receita prevista</span>
+        </div>
+      </div>
+    </aside>
+
+    <div class="page-layer" id="page-layer"></div>
+
+    <main class="main-panel">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-button mobile-only" id="sidebar-toggle" aria-label="Abrir menu">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 7H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M4 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <div>
+            <span class="eyebrow">Operacao Fort Lar</span>
+            <h1 id="page-title">Dashboard operacional</h1>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <label class="search-field">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+              <path d="M20 20L17 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <input id="global-search" type="search" placeholder="Buscar lead, cliente, OS...">
+          </label>
+          <div class="topbar-meta">
+            <span id="current-date"></span>
+            <strong id="logged-user-name">Cleiton Castelari</strong>
+          </div>
+          <button class="ghost-button" id="logout-button">Sair</button>
+          <button class="action-button" data-open-modal="lead-modal">Novo lead</button>
+          <button class="action-button secondary" data-open-modal="order-modal">Nova OS</button>
+        </div>
+      </header>
+
+      <section class="page-section is-active" id="dashboard">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Visao geral</span>
+            <h2>Controle completo da operacao da Fort Lar</h2>
+          </div>
+          <button class="ghost-button" data-open-modal="appointment-modal">Agendar visita</button>
+        </div>
+
+        <div class="stats-grid" id="stats-grid"></div>
+
+        <div class="dashboard-grid">
+          <article class="panel-card">
+            <div class="panel-head">
+              <div>
+                <span class="panel-kicker">Pipeline</span>
+                <h3>Resumo comercial</h3>
+              </div>
+            </div>
+            <div id="pipeline-overview" class="stack-list"></div>
+          </article>
+
+          <article class="panel-card">
+            <div class="panel-head">
+              <div>
+                <span class="panel-kicker">Hoje</span>
+                <h3>Agenda do dia</h3>
+              </div>
+            </div>
+            <div id="today-schedule" class="stack-list"></div>
+          </article>
+
+          <article class="panel-card">
+            <div class="panel-head">
+              <div>
+                <span class="panel-kicker">Timeline</span>
+                <h3>Atividade recente</h3>
+              </div>
+            </div>
+            <div id="activity-list" class="stack-list"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page-section" id="pipeline">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Comercial</span>
+            <h2>Pipeline de leads e orcamentos</h2>
+          </div>
+          <button class="ghost-button" data-open-modal="lead-modal">Adicionar lead</button>
+        </div>
+
+        <div class="pipeline-board" id="pipeline-board"></div>
+      </section>
+
+      <section class="page-section" id="clientes">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Relacionamento</span>
+            <h2>Clientes e historico de atendimento</h2>
+          </div>
+        </div>
+
+        <article class="panel-card">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Servico</th>
+                  <th>Localidade</th>
+                  <th>Status</th>
+                  <th>Ultimo contato</th>
+                </tr>
+              </thead>
+              <tbody id="customers-table"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="page-section" id="agenda">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Rotina</span>
+            <h2>Agenda de visitas e compromissos</h2>
+          </div>
+          <button class="ghost-button" data-open-modal="appointment-modal">Nova visita</button>
+        </div>
+
+        <div class="agenda-grid" id="agenda-grid"></div>
+      </section>
+
+      <section class="page-section" id="ordens">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Execucao</span>
+            <h2>Ordens de servico em andamento</h2>
+          </div>
+          <button class="ghost-button" data-open-modal="order-modal">Nova ordem</button>
+        </div>
+
+        <div class="orders-layout">
+          <article class="panel-card">
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>OS</th>
+                    <th>Cliente</th>
+                    <th>Servico</th>
+                    <th>Agendamento</th>
+                    <th>Valor</th>
+                    <th>Status</th>
+                    <th>Anexos</th>
+                  </tr>
+                </thead>
+                <tbody id="orders-table"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <aside class="panel-card order-detail-card" id="order-detail-card">
+            <div class="panel-head">
+              <div>
+                <span class="panel-kicker">OS selecionada</span>
+                <h3 id="order-detail-title">Selecione uma ordem</h3>
+              </div>
+            </div>
+
+            <div class="order-detail-content" id="order-detail-content">
+              <div class="empty-state">Selecione uma ordem para ver detalhes, anexos e acoes rapidas.</div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="page-section" id="financeiro">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Financeiro</span>
+            <h2>Receitas, pendencias e metas</h2>
+          </div>
+        </div>
+
+        <div class="finance-grid">
+          <article class="panel-card">
+            <div class="panel-head">
+              <div>
+                <span class="panel-kicker">Resumo</span>
+                <h3>Indicadores financeiros</h3>
+              </div>
+            </div>
+            <div id="finance-cards" class="stack-list"></div>
+          </article>
+
+          <article class="panel-card">
+            <div class="panel-head">
+              <div>
+                <span class="panel-kicker">Recebiveis</span>
+                <h3>Pagamentos em aberto</h3>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Cliente</th>
+                    <th>Servico</th>
+                    <th>Vencimento</th>
+                    <th>Valor</th>
+                    <th>Situacao</th>
+                  </tr>
+                </thead>
+                <tbody id="receivables-table"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog class="modal" id="lead-modal">
+    <form class="modal-card" method="dialog" id="lead-form">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">Novo lead</span>
+          <h3>Cadastrar novo contato</h3>
+        </div>
+        <button class="icon-button" type="button" data-close-modal aria-label="Fechar modal">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="form-grid">
+        <label class="field">
+          <span>Nome do cliente</span>
+          <input name="name" type="text" autocomplete="name" required>
+        </label>
+        <label class="field">
+          <span>Telefone</span>
+          <input name="phone" type="text" autocomplete="tel" required>
+        </label>
+        <label class="field">
+          <span>Servico</span>
+          <select name="service" required>
+            <option value="Eletrica">Eletrica</option>
+            <option value="Hidraulica">Hidraulica</option>
+            <option value="Montagem de moveis">Montagem de moveis</option>
+            <option value="Reparos em geral">Reparos em geral</option>
+            <option value="Instalacoes">Instalacoes</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Localidade</span>
+          <input name="address" type="text" autocomplete="street-address" required>
+        </label>
+        <label class="field">
+          <span>Origem</span>
+          <select name="source" required>
+            <option value="Site">Site</option>
+            <option value="Instagram">Instagram</option>
+            <option value="Indicacao">Indicacao</option>
+            <option value="WhatsApp">WhatsApp</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Prioridade</span>
+          <select name="priority" required>
+            <option value="Alta">Alta</option>
+            <option value="Media">Media</option>
+            <option value="Baixa">Baixa</option>
+          </select>
+        </label>
+        <label class="field field-full">
+          <span>Necessidade do cliente</span>
+          <textarea name="notes" rows="4" required></textarea>
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button class="action-button secondary" type="button" data-close-modal>Cancelar</button>
+        <button class="action-button" type="submit">Salvar lead</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="appointment-modal">
+    <form class="modal-card" method="dialog" id="appointment-form">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">Agenda</span>
+          <h3>Agendar visita</h3>
+        </div>
+        <button class="icon-button" type="button" data-close-modal aria-label="Fechar modal">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="form-grid">
+        <label class="field">
+          <span>Cliente</span>
+          <input name="customer" type="text" required>
+        </label>
+        <label class="field">
+          <span>Telefone</span>
+          <input name="phone" type="text">
+        </label>
+        <label class="field">
+          <span>Servico</span>
+          <input name="service" type="text" required>
+        </label>
+        <label class="field">
+          <span>Data</span>
+          <input name="date" type="date" required>
+        </label>
+        <label class="field">
+          <span>Hora</span>
+          <input name="time" type="time" required>
+        </label>
+        <label class="field field-full">
+          <span>Local</span>
+          <input name="address" type="text" required>
+        </label>
+        <label class="field field-full">
+          <span>Observacoes</span>
+          <textarea name="notes" rows="3"></textarea>
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button class="action-button secondary" type="button" data-close-modal>Cancelar</button>
+        <button class="action-button" type="submit">Salvar visita</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="order-modal">
+    <form class="modal-card" method="dialog" id="order-form">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">Execucao</span>
+          <h3>Nova ordem de servico</h3>
+        </div>
+        <button class="icon-button" type="button" data-close-modal aria-label="Fechar modal">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="form-grid">
+        <label class="field">
+          <span>Cliente</span>
+          <input name="customer" type="text" required>
+        </label>
+        <label class="field">
+          <span>Telefone</span>
+          <input name="phone" type="text">
+        </label>
+        <label class="field">
+          <span>Servico</span>
+          <input name="service" type="text" required>
+        </label>
+        <label class="field">
+          <span>Data</span>
+          <input name="date" type="date" required>
+        </label>
+        <label class="field">
+          <span>Hora</span>
+          <input name="time" type="time" required>
+        </label>
+        <label class="field">
+          <span>Valor</span>
+          <input name="amount" type="number" min="0" step="0.01" required>
+        </label>
+        <label class="field">
+          <span>Status</span>
+          <select name="status" required>
+            <option value="Agendado">Agendado</option>
+            <option value="Em andamento">Em andamento</option>
+            <option value="Concluido">Concluido</option>
+            <option value="Cancelado">Cancelado</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Pagamento</span>
+          <select name="paymentStatus" required>
+            <option value="Pendente">Pendente</option>
+            <option value="Pago">Pago</option>
+            <option value="Parcial">Parcial</option>
+          </select>
+        </label>
+        <label class="field field-full">
+          <span>Endereco</span>
+          <input name="address" type="text" required>
+        </label>
+        <label class="field field-full">
+          <span>Descricao do servico</span>
+          <textarea name="notes" rows="4"></textarea>
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button class="action-button secondary" type="button" data-close-modal>Cancelar</button>
+        <button class="action-button" type="submit">Salvar OS</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="./config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

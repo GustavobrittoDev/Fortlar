@@ -1,0 +1,162 @@
+{
+  "leads": [
+    {
+      "id": "LD-101",
+      "name": "Mariana Souza",
+      "phone": "(12) 99111-2233",
+      "service": "Hidráulica",
+      "address": "Vila Branca, Jacareí",
+      "source": "Site",
+      "priority": "Alta",
+      "status": "novo",
+      "notes": "Vazamento na pia da cozinha e torneira pingando.",
+      "createdAt": "2026-03-22T08:40:00",
+      "lastContact": "Hoje, 09:10"
+    },
+    {
+      "id": "LD-102",
+      "name": "Rogério Lima",
+      "phone": "(12) 99671-9090",
+      "service": "Montagem de móveis",
+      "address": "Jardim Califórnia, Jacareí",
+      "source": "Indicação",
+      "priority": "Média",
+      "status": "orcamento",
+      "notes": "Montagem de painel com TV e fixação de prateleira.",
+      "createdAt": "2026-03-21T11:20:00",
+      "lastContact": "Ontem, 16:45"
+    },
+    {
+      "id": "LD-103",
+      "name": "Patrícia Alves",
+      "phone": "(12) 99881-4545",
+      "service": "Elétrica",
+      "address": "Centro, Jacareí",
+      "source": "Instagram",
+      "priority": "Alta",
+      "status": "negociacao",
+      "notes": "Instalação de spots e revisão de tomada que não funciona.",
+      "createdAt": "2026-03-20T15:30:00",
+      "lastContact": "Hoje, 08:20"
+    },
+    {
+      "id": "LD-104",
+      "name": "Carlos Mota",
+      "phone": "(12) 99700-1188",
+      "service": "Reparos em geral",
+      "address": "Parque Meia Lua, Jacareí",
+      "source": "WhatsApp",
+      "priority": "Baixa",
+      "status": "fechado",
+      "notes": "Ajuste de porta, prateleira e suporte de cortina.",
+      "createdAt": "2026-03-19T10:15:00",
+      "lastContact": "21/03, 13:00"
+    }
+  ],
+  "appointments": [
+    {
+      "id": "AG-201",
+      "customer": "Mariana Souza",
+      "service": "Hidráulica",
+      "address": "Vila Branca, Jacareí",
+      "date": "2026-03-22",
+      "time": "10:30"
+    },
+    {
+      "id": "AG-202",
+      "customer": "Patrícia Alves",
+      "service": "Elétrica",
+      "address": "Centro, Jacareí",
+      "date": "2026-03-22",
+      "time": "14:00"
+    },
+    {
+      "id": "AG-203",
+      "customer": "Rogério Lima",
+      "service": "Montagem de móveis",
+      "address": "Jardim Califórnia, Jacareí",
+      "date": "2026-03-23",
+      "time": "09:00"
+    },
+    {
+      "id": "AG-204",
+      "customer": "Bianca Nunes",
+      "service": "Instalações",
+      "address": "Cidade Jardim, Jacareí",
+      "date": "2026-03-24",
+      "time": "16:30"
+    }
+  ],
+  "orders": [
+    {
+      "id": "OS-480",
+      "status": "Agendado",
+      "customer": "gustavo ",
+      "service": "quem quebrou o cano?",
+      "address": "rua campos do jordão",
+      "date": "2026-03-27",
+      "time": "12:00",
+      "amount": 2000,
+      "paymentStatus": "Pago"
+    },
+    {
+      "id": "OS-301",
+      "customer": "Rogério Lima",
+      "service": "Montagem de móveis",
+      "address": "Jardim Califórnia, Jacareí",
+      "date": "2026-03-22",
+      "time": "14:00",
+      "amount": 580,
+      "status": "Agendado",
+      "paymentStatus": "Pendente"
+    },
+    {
+      "id": "OS-302",
+      "customer": "Patrícia Alves",
+      "service": "Elétrica",
+      "address": "Centro, Jacareí",
+      "date": "2026-03-22",
+      "time": "16:00",
+      "amount": 1250,
+      "status": "Em andamento",
+      "paymentStatus": "Parcial"
+    },
+    {
+      "id": "OS-303",
+      "customer": "Carlos Mota",
+      "service": "Reparos em geral",
+      "address": "Parque Meia Lua, Jacareí",
+      "date": "2026-03-21",
+      "time": "11:00",
+      "amount": 390,
+      "status": "Concluído",
+      "paymentStatus": "Pago"
+    }
+  ],
+  "activities": [
+    {
+      "id": "AT-816",
+      "title": "Nova OS criada",
+      "description": "gustavo  entrou em execução para quem quebrou o cano?.",
+      "time": "Agora"
+    },
+    {
+      "id": "AT-401",
+      "title": "Lead recebido pelo site",
+      "description": "Mariana Souza solicitou avaliação hidráulica.",
+      "time": "Hoje, 09:10"
+    },
+    {
+      "id": "AT-402",
+      "title": "Orçamento enviado",
+      "description": "Rogério Lima recebeu proposta de montagem.",
+      "time": "Ontem, 16:45"
+    },
+    {
+      "id": "AT-403",
+      "title": "OS em andamento",
+      "description": "Patrícia Alves está com elétrica em execução.",
+      "time": "Hoje, 08:20"
+    }
+  ]
+}
