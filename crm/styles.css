@@ -29,6 +29,10 @@ html {
 }
 
 @media (min-width: 1100px) {
+  html {
+    zoom: 0.78;
+  }
+
   body {
     font-size: 14px;
   }
