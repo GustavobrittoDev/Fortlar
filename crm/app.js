@@ -1604,15 +1604,21 @@ function renderFinance() {
 
   if (elements.financialEntryButton) {
     elements.financialEntryButton.disabled = !state.meta.financeModuleReady;
-    elements.financialEntryButton.textContent = state.meta.financeModuleReady ? "Novo lancamento" : "Ativar lancamentos";
+    elements.financialEntryButton.textContent = state.meta.financeModuleReady ? "Novo lancamento" : "Financeiro indisponivel";
   }
 
   elements.cashMovementButtons?.forEach((button) => {
     button.disabled = !state.meta.financeModuleReady;
   });
 
-  elements.financeAlert.textContent = "";
-  elements.financeAlert.classList.add("is-hidden");
+  if (!state.meta.financeModuleReady) {
+    elements.financeAlert.textContent =
+      "O modulo financeiro ainda nao foi ativado no Supabase. Rode o arquivo crm/supabase-finance-upgrade.sql uma unica vez para liberar receitas, despesas e fluxo de caixa.";
+    elements.financeAlert.classList.remove("is-hidden");
+  } else {
+    elements.financeAlert.textContent = "";
+    elements.financeAlert.classList.add("is-hidden");
+  }
 
   elements.financeCards.innerHTML = financeData.summaryCards
     .map(
