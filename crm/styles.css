@@ -28,6 +28,12 @@ html {
   scroll-behavior: smooth;
 }
 
+@media (min-width: 1100px) {
+  html {
+    zoom: 0.8;
+  }
+}
+
 body {
   margin: 0;
   font-family: "Manrope", sans-serif;
